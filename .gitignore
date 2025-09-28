@@ -1,0 +1,95 @@
+# ── OS junk ─────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Python basics ───────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+
+# packaging / build artifacts
+build/
+dist/
+.eggs/
+*.egg-info/
+.wheels/
+share/python-wheels/
+
+# virtual envs
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# tests / coverage / hypothesis
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.hypothesis/
+cover/
+
+# typing / linters
+.mypy_cache/
+.dmypy.json
+.ruff_cache/
+.pytype/
+.pyre/
+
+# notebooks
+.ipynb_checkpoints/
+
+# ── Editors / IDE ───────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+
+# ── Docker / runtime volumes ────────────────────────────────────────────────────
+.docker/
+docker-data/
+docker/volumes/
+.data/
+data/
+tmp/
+run/
+logs/
+log/
+
+# service data (named volumes for local dev)
+pgdata/
+redis-data/
+rabbitmq-data/
+minio-data/
+
+# ── App generated media (artifacts, local uploads) ──────────────────────────────
+storage/
+media/
+uploads/
+hls_out/
+dash_out/
+
+# ── Configs ─────────────────────────────────────────────────────────────────────
+# реальный конфиг — игнорим; пример — коммитим
+config.toml
+.env
+!.exaple.env
+!config.example.toml
+
+# nginx/compose example configs
+!nginx/**/*.example
+!docker/**/*.example
+
+# secrets / certs
+secrets/
+*.pem
+*.key
+*.crt
+.pypirc
+
+# ── Optional frontend (if present) ──────────────────────────────────────────────
+**/node_modules/
+**/.next/
+**/.nuxt/
+**/dist/
+**/build/
