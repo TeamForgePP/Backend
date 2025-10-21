@@ -31,14 +31,12 @@ jobs:
       - name: Sync deps
         run: uv sync --all-extras --dev
 
-      # шаг определяет и применяет новую версию: коммит/тег
       - name: semantic-release version
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # <-- ВАЖНО: semantic-release читает GH_TOKEN
         run: uv run semantic-release version
 
-      # шаг публикует релиз (github release), при необходимости собирает дистрибутив
       - name: semantic-release publish
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # <-- и тут тоже GH_TOKEN
         run: uv run semantic-release publish
