@@ -1,4 +1,4 @@
-FROM ghcr.io/astral-sh/uv:python3.12-alpine AS builder
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm AS builder
 
 ENV UV_PROJECT_ENV=.venv \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -38,6 +38,3 @@ RUN adduser --disabled-password --gecos "" appuser \
 USER appuser
 
 EXPOSE 8000
-
-# Start FastAPI via uvicorn from the venv
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
