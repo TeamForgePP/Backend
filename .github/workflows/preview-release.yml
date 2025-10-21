@@ -1,15 +1,32 @@
 name: preview-release
+
 on:
   pull_request:
-    branches: [main]
+    branches: [ main ]
 
 jobs:
   dry-run:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
+      - name: Checkout PR head (not detached)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0           # нужна вся история
+          fetch-tags: true         # нужны теги
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+
+      - name: Show branch
+        run: |
+          git branch --show-current
+          git describe --tags --always || true
+
       - uses: astral-sh/setup-uv@v3
-      - run: uv sync --all-extras --dev
+
+      - name: Sync deps
+        run: uv sync --all-extras --dev
+
       - name: semantic-release dry run
-        run: uv run semantic-release publish --noop
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # не обязателен для no-op, но не мешает
+        run: uv run semantic-release --noop publish

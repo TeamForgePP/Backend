@@ -1,27 +1,71 @@
-# fastapi-video-hosting
+# 🧩 TeamForgePP — Backend
 
-## Running with Docker
+Монолитный backend проекта **TeamForgePP**, реализованный на **FastAPI** с использованием **SQLAlchemy**, **Alembic**, **PostgreSQL** и **MinIO**.  
+Проект запускается через `uv` и управляется с помощью `Makefile`.
 
-This project uses Python 3.12 and manages dependencies with `uv` in a virtual environment. The application is served via FastAPI and runs on port 80.
+---
 
-### Build and Run
+## ⚙️ Технологический стек
 
-Use Docker Compose to build and start the service:
+- **Python 3.12+**
+- **FastAPI** — основной веб-фреймворк
+- **SQLAlchemy** — ORM и управление данными
+- **Alembic** — миграции базы данных
+- **PostgreSQL** — основная СУБД
+- **MinIO** — хранилище файлов
+- **uv** — менеджер зависимостей и среды исполнения
+- **Docker Compose** — инфраструктура сервисов
 
+---
+
+## 🚀 Запуск проекта
+
+Перед запуском убедись, что установлены:
+- **Docker** и **Docker Compose**
+- **make**
+- **uv** (устанавливается через `pip install uv`)
+
+### 1. Клонирование репозитория
 ```bash
-docker compose up --build
+git clone https://github.com/<your-org>/TeamForgePP.git
+cd TeamForgePP
 ```
-
-### Service Details
-- **Service name:** `python-uv`
-- **Exposed port:** `80` (FastAPI default)
-- **Container name:** `python-uv`
-- **Network:** `backend` (bridge driver)
-
-### Configuration
-- No environment variables are required by default. If you need to set any, uncomment the `env_file` line in `docker-compose.yml` and provide a `.env` file.
-- All dependencies are managed via `pyproject.toml` and `uv.lock`.
-
-### Notes
-- The Dockerfile uses a multi-stage build for efficient dependency management and a minimal final image.
-- The application code is located in the `src/` directory and is started with Uvicorn.
+### 2. Настройка окружения
+Скопируй .env.example (если есть) и укажи значения для:
+cp .env.example .env
+.env используется только для запуска БД и MinIO.
+Основная конфигурация backend хранится в config.toml.
+### 3. Установка зависимостей
+```bash
+uv sync
+```
+### 4. Запуск backend-сервера
+```bash
+make run
+```
+После запуска приложение будет доступно по адресу:
+http://localhost:8000
+## 🧰 Работа с миграциями (Alembic)
+Миграции ещё не созданы, но Alembic уже подключён.
+После определения моделей можно будет использовать стандартные команды:
+```bash
+uv run alembic revision --autogenerate -m "init"
+uv run alembic upgrade head
+```
+## 📁 Структура проекта (предварительно)
+```bash
+TeamForgePP/
+├── src/
+│   ├── main.py             # Точка входа
+│   ├── config/             # Настройки (config.toml)
+│   ├── db/                 # Инициализация БД, Alembic
+│   ├── api/                # Роутеры FastAPI
+│   ├── schemas/            # DTO / Pydantic-схемы
+│   ├── services/           # Логика приложения
+│   └── core/               # Утилиты, константы, logger
+├── Makefile
+├── Dockerfile
+├── docker-compose.yaml
+├── .env
+└── config.toml
+```
