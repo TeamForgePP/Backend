@@ -12,4 +12,4 @@ jobs:
       - uses: astral-sh/setup-uv@v3
       - run: uv sync --all-extras --dev
       - name: semantic-release dry run
-        run: uv run semantic-release publish --noop
+        run: uv run semantic-release publish --dry-run
