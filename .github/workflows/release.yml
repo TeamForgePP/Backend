@@ -1,21 +1,44 @@
 name: release
+
 on:
   push:
-    branches: [main]
+    branches: [ main ]
 
 permissions:
-  contents: write
+  contents: write    # нужно для тегов и релизов
 
 jobs:
   release:
     if: github.event.repository.fork == false
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
-      - uses: astral-sh/setup-uv@v3
-      - run: uv sync --all-extras --dev
-      - name: semantic-release
-        run: uv run semantic-release publish
+      - name: Checkout branch (not detached) with tags
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          ref: ${{ github.ref_name }}
+
+      - name: Git identity for release commits
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Sync deps
+        run: uv sync --all-extras --dev
+
+      # шаг определяет и применяет новую версию: коммит/тег
+      - name: semantic-release version
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: uv run semantic-release version
+
+      # шаг публикует релиз (github release), при необходимости собирает дистрибутив
+      - name: semantic-release publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: uv run semantic-release publish
