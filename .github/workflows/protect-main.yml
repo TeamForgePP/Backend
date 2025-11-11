@@ -1,0 +1,19 @@
+name: Protect main
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Block PRs not from dev
+        if: github.head_ref != 'dev'
+        run: |
+          echo "❌ Pull requests to main are allowed only from 'dev'"
+          exit 1
+
+      - name: Allow PR from dev
+        if: github.head_ref == 'dev'
+        run: echo "✅ PR from dev is allowed"
