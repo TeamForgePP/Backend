@@ -2,6 +2,46 @@
 
 <!-- version list -->
 
+## v1.2.0 (2025-11-11)
+
+### Chores
+
+- **docker**: Удалил redis, перешел на другой вариант родительского контейнера
+  ([#6](https://github.com/TeamForgePP/Backend/pull/6),
+  [`ba11364`](https://github.com/TeamForgePP/Backend/commit/ba11364bb9cd2609c16e2cce323f79dab5a0f082))
+
+- **git**: По новой ([#6](https://github.com/TeamForgePP/Backend/pull/6),
+  [`ba11364`](https://github.com/TeamForgePP/Backend/commit/ba11364bb9cd2609c16e2cce323f79dab5a0f082))
+
+- **git**: Поправил releade.yml ([#6](https://github.com/TeamForgePP/Backend/pull/6),
+  [`ba11364`](https://github.com/TeamForgePP/Backend/commit/ba11364bb9cd2609c16e2cce323f79dab5a0f082))
+
+- **git**: Поправил работу пайплайна ([#6](https://github.com/TeamForgePP/Backend/pull/6),
+  [`ba11364`](https://github.com/TeamForgePP/Backend/commit/ba11364bb9cd2609c16e2cce323f79dab5a0f082))
+
+- **git**: Скока можно ([#6](https://github.com/TeamForgePP/Backend/pull/6),
+  [`ba11364`](https://github.com/TeamForgePP/Backend/commit/ba11364bb9cd2609c16e2cce323f79dab5a0f082))
+
+### Documentation
+
+- **README**: Заменил ридми из темплейта ([#6](https://github.com/TeamForgePP/Backend/pull/6),
+  [`ba11364`](https://github.com/TeamForgePP/Backend/commit/ba11364bb9cd2609c16e2cce323f79dab5a0f082))
+
+- **README**: Поправил ссылку на клонирование проекта
+  ([#6](https://github.com/TeamForgePP/Backend/pull/6),
+  [`ba11364`](https://github.com/TeamForgePP/Backend/commit/ba11364bb9cd2609c16e2cce323f79dab5a0f082))
+
+- **README**: Поправил старт-документацию добавлено описание работы с хуками и ссылка на файлы .env
+  и config.toml ([#6](https://github.com/TeamForgePP/Backend/pull/6),
+  [`ba11364`](https://github.com/TeamForgePP/Backend/commit/ba11364bb9cd2609c16e2cce323f79dab5a0f082))
+
+### Features
+
+- **logger**: Добавил кастомный логгер с подсветкой типов, датой, функцией и т.д.
+  ([#6](https://github.com/TeamForgePP/Backend/pull/6),
+  [`ba11364`](https://github.com/TeamForgePP/Backend/commit/ba11364bb9cd2609c16e2cce323f79dab5a0f082))
+
+
 ## v1.1.0 (2025-11-11)
 
 ### Chores
