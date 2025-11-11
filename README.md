@@ -27,7 +27,7 @@
 
 ### 1. Клонирование репозитория
 ```bash
-git clone https://github.com/<your-org>/TeamForgePP.git
+git clone git@github.com:TeamForgePP/Backend.git
 cd TeamForgePP
 ```
 ### 2. Настройка окружения
