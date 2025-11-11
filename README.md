@@ -27,12 +27,11 @@
 
 ### 1. Клонирование репозитория
 ```bash
-git clone https://github.com/<your-org>/TeamForgePP.git
+git clone git@github.com:TeamForgePP/Backend.git
 cd TeamForgePP
 ```
 ### 2. Настройка окружения
-Скопируй .env.example (если есть) и укажи значения для:
-cp .env.example .env
+Скопируй .env и config.toml из документации и расположи их в корне проекта
 .env используется только для запуска БД и MinIO.
 Основная конфигурация backend хранится в config.toml.
 ### 3. Установка зависимостей
@@ -45,27 +44,17 @@ make run
 ```
 После запуска приложение будет доступно по адресу:
 http://localhost:8000
-## 🧰 Работа с миграциями (Alembic)
+## 🧰 Работа с _коммитами_ (commitizen)
+На проекте подключен линтёр и проверка на типизацию перед коммитом, а так же строгая проверка на следование правилам Conventional Commits. 
+
+Чтобы подключить прекоммиты и commitizen выполните команду:
+```bash
+make hooks
+```
+## 🧰 Работа с _миграциями_ (Alembic)
 Миграции ещё не созданы, но Alembic уже подключён.
 После определения моделей можно будет использовать стандартные команды:
 ```bash
 uv run alembic revision --autogenerate -m "init"
 uv run alembic upgrade head
-```
-## 📁 Структура проекта (предварительно)
-```bash
-TeamForgePP/
-├── src/
-│   ├── main.py             # Точка входа
-│   ├── config/             # Настройки (config.toml)
-│   ├── db/                 # Инициализация БД, Alembic
-│   ├── api/                # Роутеры FastAPI
-│   ├── schemas/            # DTO / Pydantic-схемы
-│   ├── services/           # Логика приложения
-│   └── core/               # Утилиты, константы, logger
-├── Makefile
-├── Dockerfile
-├── docker-compose.yaml
-├── .env
-└── config.toml
 ```
