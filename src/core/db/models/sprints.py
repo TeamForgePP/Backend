@@ -12,7 +12,8 @@ class Sprint(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
 
     project_id: Mapped[UUID] = mapped_column(
-        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
     )
 
     seq: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -24,5 +25,7 @@ class Sprint(Base):
     deadline: Mapped[Date] = mapped_column(Date, nullable=False)
 
     created_at: Mapped[DateTime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
     )
