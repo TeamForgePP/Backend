@@ -1,7 +1,7 @@
 from uuid import UUID as pyUUID
 from uuid import uuid4
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, Text, func
+from sqlalchemy import DateTime, Enum, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID as UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -12,13 +12,15 @@ from .enum import TaskPriority, TaskStatus, TeamRole
 class Tasks(Base):
     id: Mapped[pyUUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
 
-    project_id: Mapped[pyUUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("projects.id"), nullable=False
-    )
+    # project_id: Mapped[pyUUID] = mapped_column(
+    #   UUID(as_uuid=True),
+    #   ForeignKey("projects.id"),
+    #   nullable=False)
 
-    sprint_id: Mapped[pyUUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("sprints.id"), nullable=False
-    )
+    # sprint_id: Mapped[pyUUID] = mapped_column(
+    #   UUID(as_uuid=True),
+    #   ForeignKey("sprints.id"),
+    #   nullable=False)
 
     title: Mapped[str] = mapped_column(String(100), nullable=False)
 
