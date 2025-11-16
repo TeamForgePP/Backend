@@ -1,35 +1,32 @@
-from uuid import UUID as pyUUID
-from uuid import uuid4
+from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, DateTime, Enum, Text, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
-from ..base import Base
-from .enum import NotificationType
+from src.core.db import Base, NotificationType
 
 
 class Notifications(Base):
-    id: Mapped[pyUUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
 
-    # user_id: Mapped[pyUUID] = mapped_column(
-    #   UUID(as_uuid=True),
-    #   ForeignKey("users.id"),
-    #   nullable=False)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
 
-    type: Mapped[NotificationType] = mapped_column(Enum(NotificationType))
+    type: Mapped[NotificationType] = mapped_column(
+        Enum(NotificationType, name="notification_type", create_constraint=True), nullable=False
+    )
 
     title: Mapped[str] = mapped_column(Text)
 
     message: Mapped[str] = mapped_column(Text)
 
-    # project_id: Mapped[pyUUID] = mapped_column(
-    #   UUID(as_uuid=True),
-    #   ForeignKey("projects.id"),
-    #   nullable=False)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
 
     is_read: Mapped[bool] = mapped_column(Boolean, default=False)
 
     created_at: Mapped[DateTime] = mapped_column(
-        DateTime, nullable=False, server_default=func.now()
+        DateTime(timezone=True), nullable=False, default=func.now()
+    )
+
+    updated_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=func.now(), onupdate=func.now()
     )

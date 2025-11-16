@@ -1,33 +1,36 @@
-from uuid import UUID as pyUUID
-from uuid import uuid4
+from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, Enum, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import DateTime, Enum, ForeignKey, func
 from sqlalchemy.orm import Mapped, mapped_column
 
-from ..base import Base
-from .enum import InvitationStatus
+from src.core.db import Base, InvitationStatus
 
 
 class Invitations(Base):
-    id: Mapped[pyUUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    # notification_id: Mapped[pyUUID] = mapped_column(
-    #   UUID(as_uuid=True),
-    #   ForeignKey("notifications.id"),
-    #   nullable=False)
-    # project_id: Mapped[pyUUID] = mapped_column(
-    #   UUID(as_uuid=True),
-    #   ForeignKey("projects.id"),
-    #   nullable=False)
-    # invited_user_id: Mapped[pyUUID] = mapped_column(
-    #   UUID(as_uuid=True),
-    #   ForeignKey("users.id"),
-    #   nullable=False)
-    # invited_by_id: Mapped[pyUUID] = mapped_column(
-    #   UUID(as_uuid=True),
-    #   ForeignKey("users.id"),
-    #   nullable=False)
-    status: Mapped[InvitationStatus] = mapped_column(Enum(InvitationStatus))
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+
+    notification_id: Mapped[UUID] = mapped_column(ForeignKey("notifications.id"), nullable=False)
+
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+
+    invited_user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id"), nullable=False, doc="тот, кого пригласили"
+    )
+
+    invited_by_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id"), nullable=False, doc="тот, кто пригласил"
+    )
+
+    status: Mapped[InvitationStatus] = mapped_column(
+        Enum(InvitationStatus, name="invitation_status", create_constraint=True),
+        nullable=False,
+        default=InvitationStatus.Posted,
+    )
+
     created_at: Mapped[DateTime] = mapped_column(
-        DateTime, nullable=False, server_default=func.now()
+        DateTime(timezone=True), nullable=False, default=func.now()
+    )
+
+    updated_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=func.now(), onupdate=func.now()
     )

@@ -1,17 +1,16 @@
-from __future__ import annotations
-
 from uuid import UUID
 
 from sqlalchemy import ForeignKey, PrimaryKeyConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from ..base import Base
+from src.core.db import Base
 
 
-class ProjectReport(Base):
+class ProjectReports(Base):
     project_id: Mapped[UUID] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
     )
+
     report_id: Mapped[UUID] = mapped_column(
         ForeignKey("reports.id", ondelete="CASCADE"), nullable=False
     )

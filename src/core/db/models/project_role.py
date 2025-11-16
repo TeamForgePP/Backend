@@ -1,21 +1,16 @@
-# from uuid import UUID as pyUUID
+from uuid import UUID
 
-from sqlalchemy import Enum
+from sqlalchemy import Enum, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 
-from ..base import Base
-from .enum import TeamRole
+from src.core.db import Base, TeamRole
 
 
 class ProjectRole(Base):
-    # project_id: Mapped[pyUUID] = mapped_column(
-    #   UUID(as_uuid=True),
-    #   ForeignKey("projects.id"),
-    #   nullable=False)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
 
-    # user_id: Mapped[pyUUID] = mapped_column(
-    #   UUID(as_uuid=True),
-    #   ForeignKey("users.id"),
-    #   nullable=False)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
 
-    role: Mapped[TeamRole] = mapped_column(Enum(TeamRole), nullable=False)
+    role: Mapped[TeamRole] = mapped_column(
+        Enum(TeamRole, name="team_role", create_constraint=True), nullable=False
+    )
