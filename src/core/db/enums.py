@@ -37,8 +37,7 @@ class TeamRole(str, Enum):
 class UserStatus(str, Enum):
     OWNER = "owner"
     MEMBER = "member"
-    INVATED = "invated"  # оставил как в схеме (там опечатка)
-
+    INViTED = "invited"
 
 class TaskPriority(str, Enum):
     HIGH = "high"
