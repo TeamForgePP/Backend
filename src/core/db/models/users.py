@@ -1,6 +1,4 @@
-from __future__ import annotations
-
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
@@ -10,7 +8,7 @@ from ..enums import UserRole
 
 
 class User(Base):
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    id: Mapped[UUID] = mapped_column(primary_key=True)
 
     last_name: Mapped[str] = mapped_column(String(35), nullable=False)
     first_name: Mapped[str] = mapped_column(String(20), nullable=False)
@@ -27,11 +25,11 @@ class User(Base):
 
     group_id: Mapped[UUID | None] = mapped_column(ForeignKey("groups.id", ondelete="SET NULL"))
 
-    in_team: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    in_team: Mapped[bool] = mapped_column(Boolean, nullable=False, default="false")
 
     created_at: Mapped[DateTime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
+        DateTime(timezone=True), nullable=False, default=func.now()
     )
     updated_at: Mapped[DateTime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+        DateTime(timezone=True), nullable=False, default=func.now(), onupdate=func.now()
     )
