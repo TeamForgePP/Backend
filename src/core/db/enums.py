@@ -1,67 +1,68 @@
 from enum import Enum
 
 
-class UserRole(str, Enum):
-    STUDENT = "student"
-    CURATOR = "curator"
+class Faculty(str, Enum):
+    CYBERNETICS_AND_SECURITY = "cybernetics_and_security"
+    DIGITAL_ECONOMY_AND_MEDIA = "digital_economy_and_media"
+    INFORMATION_TECHNOLOGY = "information_technology"
+    NETWORKS_AND_COMMUNICATION = "networks_and_communication"
+    RADIO_AND_TV = "radio_and_tv"
 
 
-class NotificationType(str, Enum):
-    NEW_TASK = "new_task"
-    NEW_INVITE = "new_invite"
-    PROJECT_CLOSED = "project_closed"
-    DEADLINE = "deadline"
-    REMOVED_FROM_PROJECT = "removed_from_project"
+class InvitationStatus(Enum):
+    Accepted = "accepted"
+    Posted = "posted"
+    Rejected = "rejected"
 
 
 class LevelEducation(str, Enum):
-    SECONDARY_SPECIAL = "secondary_special"
     BACHELOR = "bachelor"
-    SPECIALIST = "specialist"
+    DOCTORATE = "doctorate"
     MASTER = "master"
     POSTGRADUATE = "postgraduate"
-    DOCTORATE = "doctorate"
+    SECONDARY_SPECIAL = "secondary_special"
+    SPECIALIST = "specialist"
 
 
-class TeamRole(str, Enum):
-    TEAM_LEAD = "team_lead"
-    BACKEND = "backend"
-    FRONTEND = "frontend"
-    DEVOPS = "devops"
-    MANAGER = "manager"
-    PRODUCT_MANAGER = "product_manager"
-    BUSINESS_ANALYST = "business_analyst"
+class NotificationType(Enum):
+    Deadline = "deadline"
+    NewInvite = "new_invite"
+    NewTask = "new_task"
+    ProjectClosed = "project_closed"
+    RemoverFromProject = "removed_from_project"
+
+
+class TaskPriority(Enum):
+    High = "high"
+    Low = "Low"
+    Medium = "medium"
+
+
+class TaskStatus(Enum):
+    Done = "DONE"
+    InProgress = "IN_PROGRESS"
+    InReview = "IN_REVIEW"
+    InTest = "IN_TEST"
+    ToDo = "TO_DO"
+
+
+class TeamRole(Enum):
+    Backend = "backend"
+    BusinessAnalyst = "business_analyst"
+    Curator = "Curator"
+    Devops = "devops"
+    Frontend = "frontend"
+    Manager = "manager"
+    ProductManager = "product_manager"
+    TeamLead = "team_lead"
+
+
+class UserRole(str, Enum):
     CURATOR = "curator"
+    STUDENT = "student"
 
 
-class UserStatus(str, Enum):
-    OWNER = "owner"
-    MEMBER = "member"
-    INViTED = "invited"
-
-class TaskPriority(str, Enum):
-    HIGH = "high"
-    MEDIUM = "medium"
-    LOW = "low"
-
-
-class TaskStatus(str, Enum):
-    TO_DO = "TO_DO"
-    IN_PROGRESS = "IN_PROGRESS"
-    IN_TEST = "IN_TEST"
-    IN_REVIEW = "IN_REVIEW"
-    DONE = "DONE"
-
-
-class InvitationStatus(str, Enum):
-    POSTED = "posted"
-    REJECTED = "rejected"
-    ACCEPTED = "accepted"
-
-
-class Faculty(str, Enum):
-    RADIO_AND_TV = "radio_and_tv"
-    INFORMATION_TECHNOLOGY = "information_technology"
-    CYBERNETICS_AND_SECURITY = "cybernetics_and_security"
-    NETWORKS_AND_COMMUNICATION = "networks_and_communication"
-    DIGITAL_ECONOMY_AND_MEDIA = "digital_economy_and_media"
+class UserStatus(Enum):
+    Invited = "invited"
+    Member = "member"
+    Owner = "owner"
