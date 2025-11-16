@@ -3,7 +3,8 @@ from uuid import UUID, uuid4
 from sqlalchemy import DateTime, Enum, ForeignKey, SmallInteger, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.core.db import Base, TaskPriority, TaskStatus, TeamRole
+from src.core.db.base import Base
+from src.core.db.enums import TaskPriority, TaskStatus, TeamRole
 
 
 class Tasks(Base):

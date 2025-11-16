@@ -1,12 +1,16 @@
 from uuid import UUID
 
-from sqlalchemy import ForeignKey
+from sqlalchemy import ForeignKey, PrimaryKeyConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.core.db import Base
+from src.core.db.base import Base
 
 
 class Performes(Base):
-    task_id: Mapped[UUID] = mapped_column(ForeignKey("tasks.id"), nullable=False)
+    __table_args__ = (PrimaryKeyConstraint("task_id", "assigne_id", name="pk_performes"),)
 
-    assigne_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    task_id: Mapped[UUID] = mapped_column(ForeignKey("tasks.id"), primary_key=True, nullable=False)
+
+    assigne_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id"), primary_key=True, nullable=False
+    )

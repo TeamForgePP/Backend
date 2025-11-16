@@ -3,7 +3,8 @@ from uuid import UUID
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.core.db import Base, UserRole
+from src.core.db.base import Base
+from src.core.db.enums import UserRole
 
 
 class Users(Base):

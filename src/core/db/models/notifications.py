@@ -3,7 +3,8 @@ from uuid import UUID, uuid4
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.core.db import Base, NotificationType
+from src.core.db.base import Base
+from src.core.db.enums import NotificationType
 
 
 class Notifications(Base):

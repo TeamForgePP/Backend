@@ -3,7 +3,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.core.db import Base
+from src.core.db.base import Base
 
 
 class Projects(Base):

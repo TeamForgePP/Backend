@@ -1,4 +1,4 @@
-from src.core.db.models.groups import Group
+from src.core.db.models.groups import Groups
 from src.core.db.models.invitations import Invitations
 from src.core.db.models.notifications import Notifications
 from src.core.db.models.performes import Performes
@@ -12,16 +12,16 @@ from src.core.db.models.teams import Teams
 from src.core.db.models.users import Users
 
 __all__ = [
-    "Group",
-    "Invitations",
-    "Notifications",
-    "Performes",
-    "ProjectReports",
-    "ProjectRole",
+    "Users",
+    "Groups",
     "Projects",
+    "Teams",
+    "ProjectRole",
     "Reports",
+    "ProjectReports",
     "Sprints",
     "Tasks",
-    "Teams",
-    "Users",
+    "Performes",
+    "Notifications",
+    "Invitations",
 ]
