@@ -10,6 +10,7 @@ from .enums import (
     UserRole,
     UserStatus,
 )
+from .interfaces import BaseRepository
 from .session import get_session
 
 __all__ = [
@@ -26,4 +27,5 @@ __all__ = [
     # __остальные импорты__
     "get_session",
     "Base",
+    "BaseRepository",
 ]
