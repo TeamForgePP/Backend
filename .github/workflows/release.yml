@@ -5,7 +5,7 @@ on:
     branches: [ main ]
 
 permissions:
-  contents: write
+  contents: write    # нужно для тегов и релизов
 
 jobs:
   release:
@@ -19,11 +19,13 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
           ref: ${{ github.ref_name }}
+          persist-credentials: false   # <--- не использовать GITHUB_TOKEN
 
-      - name: Configure git identity for release commits
+      - name: Configure git auth with PAT
         run: |
-          git config user.name  "Release Bot"
+          git config user.name "Release Bot"
           git config user.email "release-bot@teamforgepp.local"
+          git remote set-url origin "https://x-access-token:${{ secrets.SEMANTIC_RELEASE_PAT }}@github.com/TeamForgePP/Backend.git"
 
       - name: Setup uv
         uses: astral-sh/setup-uv@v3
@@ -33,10 +35,10 @@ jobs:
 
       - name: semantic-release version
         env:
-          GH_TOKEN: ${{ secrets.SEMANTIC_RELEASE_PAT }}
+          GH_TOKEN: ${{ secrets.SEMANTIC_RELEASE_PAT }}   # <-- PAT вместо GITHUB_TOKEN
         run: uv run semantic-release version
 
       - name: semantic-release publish
         env:
-          GH_TOKEN: ${{ secrets.SEMANTIC_RELEASE_PAT }}
+          GH_TOKEN: ${{ secrets.SEMANTIC_RELEASE_PAT }}   # <-- PAT в publish
         run: uv run semantic-release publish
