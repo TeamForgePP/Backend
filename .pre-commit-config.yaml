@@ -1,21 +1,36 @@
+# =========================
+# hooks on PRE-COMMIT
+# =========================
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.13.2
     hooks:
       - id: ruff
-      - id: ruff-format
+        name: ruff (lint)
+        stages: [pre-commit]
 
+      - id: ruff-format
+        name: ruff-format (format)
+        stages: [pre-commit]
+
+  # =========================
+  # hooks on PRE-PUSH
+  # =========================
   - repo: local
     hooks:
       - id: mypy
-        name: mypy (uv)
+        name: mypy (uv, on push)
         entry: uv run mypy
         language: system
         pass_filenames: false
-        args: [ "src" ]
+        args: ["src"]
+        stages: [pre-push]
 
+  # =========================
+  # hooks on COMMIT-MSG
+  # =========================
   - repo: https://github.com/commitizen-tools/commitizen
     rev: v4.9.1
     hooks:
       - id: commitizen
-        stages: [ commit-msg ]
+        stages: [commit-msg]
