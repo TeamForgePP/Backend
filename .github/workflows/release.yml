@@ -23,7 +23,7 @@ jobs:
       - name: Configure git identity for release commits
         run: |
           git config user.name  "Release Bot"
-          git.config user.email "release-bot@teamforgepp.local"
+          git config user.email "release-bot@teamforgepp.local"
 
       - name: Setup uv
         uses: astral-sh/setup-uv@v3
