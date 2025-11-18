@@ -5,7 +5,7 @@ on:
     branches: [ main ]
 
 permissions:
-  contents: write    # нужно для тегов и релизов
+  contents: write
 
 jobs:
   release:
@@ -33,10 +33,10 @@ jobs:
 
       - name: semantic-release version
         env:
-          GH_TOKEN: ${{ secrets.SEMANTIC_RELEASE_PAT }}   # <-- ИСПОЛЬЗУЕМ PAT
+          GH_TOKEN: ${{ secrets.SEMANTIC_RELEASE_PAT }}
         run: uv run semantic-release version
 
       - name: semantic-release publish
         env:
-          GH_TOKEN: ${{ secrets.SEMANTIC_RELEASE_PAT }}   # <-- И ТУТ ТОЖЕ PAT
+          GH_TOKEN: ${{ secrets.SEMANTIC_RELEASE_PAT }}
         run: uv run semantic-release publish
