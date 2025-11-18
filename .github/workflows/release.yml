@@ -20,10 +20,10 @@ jobs:
           fetch-tags: true
           ref: ${{ github.ref_name }}
 
-      - name: Git identity for release commits
+      - name: Configure git identity for release commits
         run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name  "Release Bot"
+          git.config user.email "release-bot@teamforgepp.local"
 
       - name: Setup uv
         uses: astral-sh/setup-uv@v3
@@ -33,10 +33,10 @@ jobs:
 
       - name: semantic-release version
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # <-- ВАЖНО: semantic-release читает GH_TOKEN
+          GH_TOKEN: ${{ secrets.SEMANTIC_RELEASE_PAT }}   # <-- ИСПОЛЬЗУЕМ PAT
         run: uv run semantic-release version
 
       - name: semantic-release publish
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # <-- и тут тоже GH_TOKEN
+          GH_TOKEN: ${{ secrets.SEMANTIC_RELEASE_PAT }}   # <-- И ТУТ ТОЖЕ PAT
         run: uv run semantic-release publish
