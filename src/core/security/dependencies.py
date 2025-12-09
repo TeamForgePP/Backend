@@ -55,7 +55,7 @@ def get_access_context(request: Request) -> AccessContext:
 
     if admin_token_service.is_admin_access(raw_payload_dict):
         role: Role = "admin"
-        token_type: TokenType = "access"
+        token_type: TokenType = TokenType.ADMIN_ACCESS
     elif admin_token_service.is_admin_refresh(raw_payload_dict):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

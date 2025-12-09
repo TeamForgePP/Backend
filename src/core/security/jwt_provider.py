@@ -1,7 +1,7 @@
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal, cast
 
-from jose import jwt  # type: ignore[import-untyped]
+from jose import jwt
 
 from src.config import cfg
 

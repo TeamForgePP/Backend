@@ -2,8 +2,7 @@ from datetime import timedelta
 from typing import Any, Protocol
 
 from src.config import cfg
-from src.core.security.jwt_provider import JwtProvider, get_jwt_provider
-from src.core.security.TokenType import TokenType
+from src.core.security.jwt_provider import JwtProvider, TokenType, get_jwt_provider
 
 
 class _ProviderProtocol(Protocol):
@@ -21,10 +20,8 @@ class _ProviderProtocol(Protocol):
 
 class AdminTokenService:
     def __init__(self, provider: JwtProvider | None = None) -> None:
-        # Теперь тип совместим
         self._provider: _ProviderProtocol = provider or get_jwt_provider()
 
-        # Исправлено: timedelta требует seconds? Нет — должны быть minutes/days
         self._access_ttl = timedelta(minutes=cfg.jwt.access_token_minutes)
         self._refresh_ttl = timedelta(days=cfg.jwt.refresh_token_days)
 
