@@ -12,9 +12,11 @@ class ProjectReports(Base):
     project_id: Mapped[UUID] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
 
     report_id: Mapped[UUID] = mapped_column(
         ForeignKey("reports.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )

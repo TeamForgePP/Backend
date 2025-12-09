@@ -11,11 +11,14 @@ class Reports(Base):
 
     file_url: Mapped[str] = mapped_column(Text, nullable=False)
 
-    creator_id: Mapped[UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    creator_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
     )
 
-    editor_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    editor_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+    )
 
     title: Mapped[str] = mapped_column(String(50), nullable=False)
 
