@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from sqlalchemy import select
@@ -11,56 +11,41 @@ from src.core.db.models.invitations import Invitations
 class InvitationsRepo(BaseRepository):
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(session)
+        self._session: AsyncSession = session
 
-    async def get_by_id(self, id_: UUID) -> Invitations | None:
-        """Получить объект по id или вернуть None."""
-
-        invitation = await self._session.execute(select(Invitations).where(Invitations.id == id_))
-        return invitation.scalar_one_or_none()
+    async def get_by_id(self, invitation_id: UUID) -> Invitations | None:
+        invitation = await self._session.get(Invitations, invitation_id)
+        return cast(Invitations | None, invitation)
 
     async def get_all(self) -> list[Invitations]:
-        """Получить все объекты."""
-
-        all_invitations = await self._session.execute(select(Invitations))
-        return list(all_invitations.scalars().all())
+        result = await self._session.execute(select(Invitations))
+        invitations = result.scalars().all()
+        return cast(list[Invitations], invitations)
 
     async def create(self, data: dict[str, Any]) -> Invitations:
-        """Создать объект из словаря полей и вернуть его."""
-
-        invitation = Invitations()
-        for key, value in data.items():
-            setattr(invitation, key, value)
-
+        invitation = Invitations(**data)
         self._session.add(invitation)
-        await self._session.commit()
+        await self._session.flush()
         await self._session.refresh(invitation)
         return invitation
 
-    async def update(self, id_: UUID, data: dict[str, Any]) -> Invitations | None:
-        """Обновить объект по id, вернуть обновлённый объект или None."""
-
-        invitation = await self._session.execute(select(Invitations).where(Invitations.id == id_))
-        result = invitation.scalar_one_or_none()
-
-        if result is None:
+    async def update(self, invitation_id: UUID, data: dict[str, Any]) -> Invitations | None:
+        invitation = await self.get_by_id(invitation_id)
+        if invitation is None:
             return None
 
-        for key, value in data.items():
-            setattr(result, key, value)
+        for field, value in data.items():
+            setattr(invitation, field, value)
 
-        await self._session.commit()
-        await self._session.refresh(result)
-        return result
+        await self._session.flush()
+        await self._session.refresh(invitation)
+        return invitation
 
-    async def delete(self, id_: UUID) -> bool:
-        """Удалить объект по id. Вернуть True, если удалён, иначе False."""
-
-        invitation = await self._session.execute(select(Invitations).where(Invitations.id == id_))
-        result = invitation.scalar_one_or_none()
-
-        if result is None:
+    async def delete(self, invitation_id: UUID) -> bool:
+        invitation = await self.get_by_id(invitation_id)
+        if invitation is None:
             return False
 
-        await self._session.delete(result)
-        await self._session.commit()
+        await self._session.delete(invitation)
+        await self._session.flush()
         return True

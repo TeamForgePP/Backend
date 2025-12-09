@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from sqlalchemy import select
@@ -11,62 +11,54 @@ from src.core.db.models.notifications import Notifications
 class NotificationsRepo(BaseRepository):
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(session)
+        self._session: AsyncSession = session
 
-    async def get_by_id(self, id_: UUID) -> Notifications | None:
-        """Получить объект по id или вернуть None."""
-
-        notification = await self._session.execute(
-            select(Notifications).where(Notifications.id == id_)
-        )
-        return notification.scalar_one_or_none()
+    async def get_by_id(self, notification_id: UUID) -> Notifications | None:
+        notification = await self._session.get(Notifications, notification_id)
+        return cast(Notifications | None, notification)
 
     async def get_all(self) -> list[Notifications]:
-        """Получить все объекты."""
+        result = await self._session.execute(select(Notifications))
+        notifications = result.scalars().all()
+        return cast(list[Notifications], notifications)
 
-        all_notifications = await self._session.execute(select(Notifications))
-        return list(all_notifications.scalars().all())
+    async def get_by_user_id(self, user_id: UUID) -> list[Notifications]:
+        result = await self._session.execute(
+            select(Notifications)
+            .where(Notifications.user_id == user_id)
+            .order_by(Notifications.created_at.desc())
+        )
+        notifications = result.scalars().all()
+        return cast(list[Notifications], notifications)
 
     async def create(self, data: dict[str, Any]) -> Notifications:
-        """Создать объект из словаря полей и вернуть его."""
-
-        notification = Notifications()
-        for key, value in data.items():
-            setattr(notification, key, value)
-
+        notification = Notifications(**data)
         self._session.add(notification)
-        await self._session.commit()
+        await self._session.flush()
         await self._session.refresh(notification)
         return notification
 
-    async def update(self, id_: UUID, data: dict[str, Any]) -> Notifications | None:
-        """Обновить объект по id, вернуть обновлённый объект или None."""
-
-        notification = await self._session.execute(
-            select(Notifications).where(Notifications.id == id_)
-        )
-        result = notification.scalar_one_or_none()
-
-        if result is None:
+    async def update(
+        self,
+        notification_id: UUID,
+        data: dict[str, Any],
+    ) -> Notifications | None:
+        notification = await self.get_by_id(notification_id)
+        if notification is None:
             return None
 
-        for key, value in data.items():
-            setattr(result, key, value)
+        for field, value in data.items():
+            setattr(notification, field, value)
 
-        await self._session.commit()
-        await self._session.refresh(result)
-        return result
+        await self._session.flush()
+        await self._session.refresh(notification)
+        return notification
 
-    async def delete(self, id_: UUID) -> bool:
-        """Удалить объект по id. Вернуть True, если удалён, иначе False."""
-
-        notification = await self._session.execute(
-            select(Notifications).where(Notifications.id == id_)
-        )
-        result = notification.scalar_one_or_none()
-
-        if result is None:
+    async def delete(self, notification_id: UUID) -> bool:
+        notification = await self.get_by_id(notification_id)
+        if notification is None:
             return False
 
-        await self._session.delete(result)
-        await self._session.commit()
+        await self._session.delete(notification)
+        await self._session.flush()
         return True

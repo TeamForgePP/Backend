@@ -1,9 +1,10 @@
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.db.enums import TaskStatus
 from src.core.db.interfaces import BaseRepository
 from src.core.db.models.tasks import Tasks
 
@@ -11,56 +12,55 @@ from src.core.db.models.tasks import Tasks
 class TasksRepo(BaseRepository):
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(session)
+        self._session: AsyncSession = session
 
-    async def get_by_id(self, id_: UUID) -> Tasks | None:
-        """Получить объект по id или вернуть None."""
-
-        task = await self._session.execute(select(Tasks).where(Tasks.id == id_))
-        return task.scalar_one_or_none()
+    async def get_by_id(self, task_id: UUID) -> Tasks | None:
+        task = await self._session.get(Tasks, task_id)
+        return cast(Tasks | None, task)
 
     async def get_all(self) -> list[Tasks]:
-        """Получить все объекты."""
+        result = await self._session.execute(select(Tasks))
+        tasks = result.scalars().all()
+        return cast(list[Tasks], tasks)
 
-        all_tasks = await self._session.execute(select(Tasks))
-        return list(all_tasks.scalars().all())
+    async def get_by_project(
+        self,
+        project_id: UUID,
+        status: TaskStatus | None = None,
+    ) -> list[Tasks]:
+        stmt = select(Tasks).where(Tasks.project_id == project_id).order_by(Tasks.seq)
+
+        if status is not None:
+            stmt = stmt.where(Tasks.status == status)
+
+        result = await self._session.execute(stmt)
+        tasks = result.scalars().all()
+        return cast(list[Tasks], tasks)
 
     async def create(self, data: dict[str, Any]) -> Tasks:
-        """Создать объект из словаря полей и вернуть его."""
-
-        task = Tasks()
-        for key, value in data.items():
-            setattr(task, key, value)
-
+        task = Tasks(**data)
         self._session.add(task)
-        await self._session.commit()
+        await self._session.flush()
         await self._session.refresh(task)
         return task
 
-    async def update(self, id_: UUID, data: dict[str, Any]) -> Tasks | None:
-        """Обновить объект по id, вернуть обновлённый объект или None."""
-
-        task = await self._session.execute(select(Tasks).where(Tasks.id == id_))
-        result = task.scalar_one_or_none()
-
-        if result is None:
+    async def update(self, task_id: UUID, data: dict[str, Any]) -> Tasks | None:
+        task = await self.get_by_id(task_id)
+        if task is None:
             return None
 
-        for key, value in data.items():
-            setattr(result, key, value)
+        for field, value in data.items():
+            setattr(task, field, value)
 
-        await self._session.commit()
-        await self._session.refresh(result)
-        return result
+        await self._session.flush()
+        await self._session.refresh(task)
+        return task
 
-    async def delete(self, id_: UUID) -> bool:
-        """Удалить объект по id. Вернуть True, если удалён, иначе False."""
-
-        task = await self._session.execute(select(Tasks).where(Tasks.id == id_))
-        result = task.scalar_one_or_none()
-
-        if result is None:
+    async def delete(self, task_id: UUID) -> bool:
+        task = await self.get_by_id(task_id)
+        if task is None:
             return False
 
-        await self._session.delete(result)
-        await self._session.commit()
+        await self._session.delete(task)
+        await self._session.flush()
         return True

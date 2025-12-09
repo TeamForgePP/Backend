@@ -1,6 +1,4 @@
-from __future__ import annotations
-
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from sqlalchemy import select
@@ -13,14 +11,16 @@ from src.core.db.models import ProjectReports, Reports
 class ReportsRepo(BaseRepository):
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(session)
+        self._session: AsyncSession = session
 
-    async def get_by_id(self, id_: UUID) -> Reports | None:
-        result = await self._session.execute(select(Reports).where(Reports.id == id_))
-        return result.scalar_one_or_none()
+    async def get_by_id(self, report_id: UUID) -> Reports | None:
+        report = await self._session.get(Reports, report_id)
+        return cast(Reports | None, report)
 
     async def get_all(self) -> list[Reports]:
         result = await self._session.execute(select(Reports))
-        return list(result.scalars().all())
+        reports = result.scalars().all()
+        return cast(list[Reports], reports)
 
     async def create(self, data: dict[str, Any]) -> Reports:
         report = Reports(**data)
@@ -29,9 +29,8 @@ class ReportsRepo(BaseRepository):
         await self._session.refresh(report)
         return report
 
-    async def update(self, id_: UUID, data: dict[str, Any]) -> Reports | None:
-        result = await self._session.execute(select(Reports).where(Reports.id == id_))
-        report = result.scalar_one_or_none()
+    async def update(self, report_id: UUID, data: dict[str, Any]) -> Reports | None:
+        report = await self.get_by_id(report_id)
         if report is None:
             return None
 
@@ -42,9 +41,8 @@ class ReportsRepo(BaseRepository):
         await self._session.refresh(report)
         return report
 
-    async def delete(self, id_: UUID) -> bool:
-        result = await self._session.execute(select(Reports).where(Reports.id == id_))
-        report = result.scalar_one_or_none()
+    async def delete(self, report_id: UUID) -> bool:
+        report = await self.get_by_id(report_id)
         if report is None:
             return False
 
@@ -52,12 +50,11 @@ class ReportsRepo(BaseRepository):
         await self._session.flush()
         return True
 
-        # Доп. методы
-
     async def get_by_project(self, project_id: UUID) -> list[Reports]:
         result = await self._session.execute(
             select(Reports)
             .join(ProjectReports, ProjectReports.report_id == Reports.id)
             .where(ProjectReports.project_id == project_id)
         )
-        return list(result.scalars().all())
+        reports = result.scalars().all()
+        return cast(list[Reports], reports)

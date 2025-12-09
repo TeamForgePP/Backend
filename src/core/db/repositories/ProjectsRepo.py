@@ -1,6 +1,4 @@
-from __future__ import annotations
-
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from sqlalchemy import select
@@ -13,14 +11,16 @@ from src.core.db.models import Projects
 class ProjectsRepo(BaseRepository):
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(session)
+        self._session: AsyncSession = session
 
-    async def get_by_id(self, id_: UUID) -> Projects | None:
-        result = await self._session.execute(select(Projects).where(Projects.id == id_))
-        return result.scalar_one_or_none()
+    async def get_by_id(self, project_id: UUID) -> Projects | None:
+        project = await self._session.get(Projects, project_id)
+        return cast(Projects | None, project)
 
     async def get_all(self) -> list[Projects]:
         result = await self._session.execute(select(Projects))
-        return list(result.scalars().all())
+        projects = result.scalars().all()
+        return cast(list[Projects], projects)
 
     async def create(self, data: dict[str, Any]) -> Projects:
         project = Projects(**data)
@@ -29,9 +29,8 @@ class ProjectsRepo(BaseRepository):
         await self._session.refresh(project)
         return project
 
-    async def update(self, id_: UUID, data: dict[str, Any]) -> Projects | None:
-        result = await self._session.execute(select(Projects).where(Projects.id == id_))
-        project = result.scalar_one_or_none()
+    async def update(self, project_id: UUID, data: dict[str, Any]) -> Projects | None:
+        project = await self.get_by_id(project_id)
         if project is None:
             return None
 
@@ -42,9 +41,8 @@ class ProjectsRepo(BaseRepository):
         await self._session.refresh(project)
         return project
 
-    async def delete(self, id_: UUID) -> bool:
-        result = await self._session.execute(select(Projects).where(Projects.id == id_))
-        project = result.scalar_one_or_none()
+    async def delete(self, project_id: UUID) -> bool:
+        project = await self.get_by_id(project_id)
         if project is None:
             return False
 

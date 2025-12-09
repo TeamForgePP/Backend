@@ -1,26 +1,26 @@
-from __future__ import annotations
-
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.db.interfaces import BaseRepository
-from src.core.db.models import Groups
+from src.core.db.models.groups import Groups
 
 
 class GroupsRepo(BaseRepository):
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(session)
+        self._session: AsyncSession = session
 
-    async def get_by_id(self, id_: UUID) -> Groups | None:
-        result = await self._session.execute(select(Groups).where(Groups.id == id_))
-        return result.scalar_one_or_none()
+    async def get_by_id(self, group_id: UUID) -> Groups | None:
+        group = await self._session.get(Groups, group_id)
+        return cast(Groups | None, group)
 
     async def get_all(self) -> list[Groups]:
         result = await self._session.execute(select(Groups))
-        return list(result.scalars().all())
+        groups = result.scalars().all()
+        return cast(list[Groups], groups)
 
     async def create(self, data: dict[str, Any]) -> Groups:
         group = Groups(**data)
@@ -29,9 +29,8 @@ class GroupsRepo(BaseRepository):
         await self._session.refresh(group)
         return group
 
-    async def update(self, id_: UUID, data: dict[str, Any]) -> Groups | None:
-        result = await self._session.execute(select(Groups).where(Groups.id == id_))
-        group = result.scalar_one_or_none()
+    async def update(self, group_id: UUID, data: dict[str, Any]) -> Groups | None:
+        group = await self.get_by_id(group_id)
         if group is None:
             return None
 
@@ -42,9 +41,8 @@ class GroupsRepo(BaseRepository):
         await self._session.refresh(group)
         return group
 
-    async def delete(self, id_: UUID) -> bool:
-        result = await self._session.execute(select(Groups).where(Groups.id == id_))
-        group = result.scalar_one_or_none()
+    async def delete(self, group_id: UUID) -> bool:
+        group = await self.get_by_id(group_id)
         if group is None:
             return False
 
