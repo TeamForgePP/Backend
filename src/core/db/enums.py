@@ -66,3 +66,9 @@ class UserStatus(Enum):
     Invited = "invited"
     Member = "member"
     Owner = "owner"
+
+
+class SprintStatus(str, Enum):
+    UPCOMING = "upcoming"
+    ACTIVE = "active"
+    COMPLETED = "completed"
