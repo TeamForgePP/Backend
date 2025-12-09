@@ -10,9 +10,17 @@ from src.core.db.enums import TaskPriority, TaskStatus, TeamRole
 class Tasks(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
 
-    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    project_id: Mapped[UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
-    sprint_id: Mapped[UUID] = mapped_column(ForeignKey("sprints.id"), nullable=False)
+    sprint_id: Mapped[UUID] = mapped_column(
+        ForeignKey("sprints.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
     title: Mapped[str] = mapped_column(String(50), nullable=False)
 
@@ -29,7 +37,10 @@ class Tasks(Base):
     )
 
     status: Mapped[TaskStatus] = mapped_column(
-        Enum(TaskStatus), nullable=False, default=TaskStatus.ToDo
+        Enum(TaskStatus),
+        nullable=False,
+        default=TaskStatus.ToDo,
+        index=True,
     )
 
     seq: Mapped[int] = mapped_column(SmallInteger, nullable=False)

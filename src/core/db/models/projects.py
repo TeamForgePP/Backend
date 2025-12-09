@@ -10,11 +10,11 @@ class Projects(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
 
     teamlead_id: Mapped[UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
     )
 
     curator_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("users.id", ondelete="RESTRICT"), doc="преподаватель"
+        ForeignKey("users.id", ondelete="RESTRICT"), doc="преподаватель", index=True
     )
 
     name: Mapped[str] = mapped_column(String(100), nullable=False)

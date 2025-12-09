@@ -10,12 +10,21 @@ from src.core.db.enums import UserStatus
 class Teams(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
 
-    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    project_id: Mapped[UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
-    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
     status: Mapped[UserStatus] = mapped_column(
-        Enum(UserStatus, name="user_status", create_constraint=True), nullable=False
+        Enum(UserStatus, name="user_status", create_constraint=True),
+        nullable=False,
     )
 
     created_at: Mapped[DateTime] = mapped_column(

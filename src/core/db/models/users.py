@@ -1,4 +1,4 @@
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
@@ -8,7 +8,7 @@ from src.core.db.enums import UserRole
 
 
 class Users(Base):
-    id: Mapped[UUID] = mapped_column(primary_key=True)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
 
     last_name: Mapped[str] = mapped_column(String(35), nullable=False)
 
@@ -28,7 +28,11 @@ class Users(Base):
 
     avatar_url: Mapped[str | None] = mapped_column(Text)
 
-    group_id: Mapped[UUID | None] = mapped_column(ForeignKey("groups.id", ondelete="SET NULL"))
+    group_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("groups.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
 
     in_team: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
 

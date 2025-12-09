@@ -10,16 +10,30 @@ from src.core.db.enums import InvitationStatus
 class Invitations(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
 
-    notification_id: Mapped[UUID] = mapped_column(ForeignKey("notifications.id"), nullable=False)
+    notification_id: Mapped[UUID] = mapped_column(
+        ForeignKey("notifications.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
-    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    project_id: Mapped[UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
     invited_user_id: Mapped[UUID] = mapped_column(
-        ForeignKey("users.id"), nullable=False, doc="тот, кого пригласили"
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        doc="тот, кого пригласили",
+        index=True,
     )
 
     invited_by_id: Mapped[UUID] = mapped_column(
-        ForeignKey("users.id"), nullable=False, doc="тот, кто пригласил"
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        doc="тот, кто пригласил",
+        index=True,
     )
 
     status: Mapped[InvitationStatus] = mapped_column(

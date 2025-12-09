@@ -15,22 +15,39 @@ COLORS = {
 
 
 class UTCFormatter(logging.Formatter):
+    def __init__(self, *, use_color: bool = True) -> None:
+        super().__init__()
+        self.use_color = use_color
+
     def formatTime(self, record: logging.LogRecord, datefmt: str | None = None) -> str:
         dt = datetime.fromtimestamp(record.created, tz=UTC)
         return dt.strftime(datefmt or "%Y-%m-%d %H:%M:%S")
 
     def format(self, record: logging.LogRecord) -> str:
-        color = COLORS.get(record.levelname.replace(RESET, ""), "")
-        record.levelname = f"{color}{record.levelname}{RESET}"
-        return super().format(record)
+        # время
+        ts = self.formatTime(record)
 
+        # уровень
+        level = record.levelname
+        level_padded = f"{level:<7}"  # фикс 8 символов
 
-FORMAT = "%(asctime)s | %(levelname)-8s | %(name)s:%(lineno)d %(funcName)s | %(message)s"
+        if self.use_color:
+            color = COLORS.get(level, "")
+            if color:
+                level_padded = f"{color}{level_padded}{RESET}"
+
+        name_padded = f"{record.name:<20}"  # 20 символов
+        line_padded = f"{record.lineno:<5}"  # 4 символа
+        func_padded = f"{record.funcName:<20}"  # 20 символов
+
+        message = record.getMessage()
+
+        return f"{ts} | {level_padded} | {name_padded}:{line_padded} {func_padded} | {message}"
 
 
 def setup_logging(config_path: str = "config.toml") -> None:
     # Загружаем конфиг
-    cfg = {}
+    cfg: dict = {}
     path = Path(config_path)
     if path.exists():
         with open(path, "rb") as f:
@@ -41,19 +58,34 @@ def setup_logging(config_path: str = "config.toml") -> None:
     to_file = log_cfg.get("to_file", False)
     log_file = log_cfg.get("file", "logs/app.log")
 
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(UTCFormatter(FORMAT))
+    # форматтеры
+    stream_formatter = UTCFormatter(use_color=True)
+    file_formatter = UTCFormatter(use_color=False)
 
+    # stdout handler
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.setFormatter(stream_formatter)
+
+    # корневой логгер
     root = logging.getLogger()
     root.setLevel(level)
     root.handlers.clear()
-    root.addHandler(handler)
+    root.addHandler(stream_handler)
 
+    # файл
     if to_file:
         Path(log_file).parent.mkdir(parents=True, exist_ok=True)
         file_handler = logging.FileHandler(log_file, encoding="utf-8")
-        file_handler.setFormatter(UTCFormatter(FORMAT))
+        file_handler.setFormatter(file_formatter)
         root.addHandler(file_handler)
+
+    logging.captureWarnings(True)
+
+    for logger_name in ("uvicorn", "uvicorn.error", "uvicorn.access", "fastapi"):
+        lg = logging.getLogger(logger_name)
+        lg.handlers.clear()
+        lg.propagate = True
+        lg.setLevel(level)
 
 
 def get_logger(name: str) -> logging.Logger:

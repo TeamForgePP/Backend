@@ -53,6 +53,39 @@ class Logging(BaseModel):
     level: str = "INFO"
 
 
+class AdminCookies(BaseModel):
+    access: str = "admin_access_token"
+    refresh: str = "admin_refresh_token"
+
+
+class Admin(BaseModel):
+    login: str = ""
+    password: str = ""
+    cookies: AdminCookies = AdminCookies()
+
+
+class JWT(BaseModel):
+    secret: str = ""
+    algorithm: str = "HS256"
+    access_token_minutes: int = 1800
+    refresh_token_days: int = 604800
+
+    @property
+    def access_cookie_max_age(self) -> int:
+        return self.access_token_minutes * 60
+
+    @property
+    def refresh_cookie_max_age(self) -> int:
+        return self.refresh_token_days * 24 * 60 * 60
+
+
+class Redis(BaseModel):
+    url: str = "redis://localhost:6379/0"
+    login_attempts_prefix: str = "auth:login_attempts:"
+    login_attempts_ttl_seconds: int = 300  # 5 minutes
+    login_attempts_max: int = 5  # default max attempts
+
+
 class Config(BaseSettings):
     model_config = SettingsConfigDict(
         extra="ignore",
@@ -62,6 +95,9 @@ class Config(BaseSettings):
     database: Database = Database()
     minio: Minio = Minio()
     logging: Logging = Logging()
+    admin: Admin = Admin()
+    jwt: JWT = JWT()
+    redis: Redis = Redis()
 
     @classmethod
     def settings_customise_sources(
@@ -76,4 +112,4 @@ class Config(BaseSettings):
         return EnvSettingsSource(settings_cls), *active_sources
 
 
-settings = Config()
+cfg = Config()

@@ -4,6 +4,7 @@ from .enums import (
     InvitationStatus,
     LevelEducation,
     NotificationType,
+    SprintStatus,
     TaskPriority,
     TaskStatus,
     TeamRole,
@@ -11,7 +12,7 @@ from .enums import (
     UserStatus,
 )
 from .interfaces import BaseRepository
-from .session import get_session
+from .UnitOfWork import UnitOfWork, get_uow
 
 __all__ = [
     # __enums для моделей__
@@ -24,8 +25,10 @@ __all__ = [
     "TeamRole",
     "UserRole",
     "UserStatus",
+    "SprintStatus",
     # __остальные импорты__
-    "get_session",
+    "get_uow",
+    "UnitOfWork",
     "Base",
     "BaseRepository",
 ]

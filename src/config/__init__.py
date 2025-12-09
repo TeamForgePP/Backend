@@ -1,5 +1,3 @@
-from .config import settings as cfg
+from .config import cfg
 
-__all__ = [
-    "cfg",
-]
+__all__ = ["cfg"]
