@@ -8,10 +8,12 @@ repos:
       - id: ruff
         name: ruff (lint)
         stages: [pre-commit]
+        exclude: alembic/versions/.*
 
       - id: ruff-format
         name: ruff-format (format)
         stages: [pre-commit]
+        exclude: alembic/versions/.*
 
   # =========================
   # hooks on PRE-PUSH
