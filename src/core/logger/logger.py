@@ -24,12 +24,11 @@ class UTCFormatter(logging.Formatter):
         return dt.strftime(datefmt or "%Y-%m-%d %H:%M:%S")
 
     def format(self, record: logging.LogRecord) -> str:
-        # время
         ts = self.formatTime(record)
 
-        # уровень
         level = record.levelname
-        level_padded = f"{level:<7}"  # фикс ширина
+
+        level_padded = f"{level:<7}"
 
         if self.use_color:
             color = COLORS.get(level, "")
@@ -71,10 +70,10 @@ def setup_logging(config_path: str = "config.toml") -> None:
 
     root = logging.getLogger()
     root.setLevel(level)
+
     root.handlers.clear()
     root.addHandler(stream_handler)
 
-    # файл
     if to_file:
         Path(log_file).parent.mkdir(parents=True, exist_ok=True)
         file_handler = logging.FileHandler(log_file, encoding="utf-8")
