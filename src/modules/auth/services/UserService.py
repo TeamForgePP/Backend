@@ -142,6 +142,17 @@ class UserAuthService:
         user_id = payload.get("sub")
         email = payload.get("email")
 
+        if not isinstance(email, str):
+            logger.warning(
+                "user refresh payload without valid email | ip=%s | email=%r",
+                client_ip,
+                email,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="invalid refresh token payload",
+            )
+
         tokens = UserTokenPair(
             access_token=token_service.create_access(
                 user_id=str(user_id),
