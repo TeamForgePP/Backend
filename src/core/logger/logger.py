@@ -29,24 +29,29 @@ class UTCFormatter(logging.Formatter):
 
         # уровень
         level = record.levelname
-        level_padded = f"{level:<7}"  # фикс 8 символов
+        level_padded = f"{level:<7}"  # фикс ширина
 
         if self.use_color:
             color = COLORS.get(level, "")
             if color:
                 level_padded = f"{color}{level_padded}{RESET}"
 
-        name_padded = f"{record.name:<20}"  # 20 символов
-        line_padded = f"{record.lineno:<5}"  # 4 символа
-        func_padded = f"{record.funcName:<20}"  # 20 символов
+        name_padded = f"{record.name:<20}"
+        line_padded = f"{record.lineno:<5}"
+        func_padded = f"{record.funcName:<20}"
 
         message = record.getMessage()
+
+        if record.exc_info:
+            message = f"{message}\n{self.formatException(record.exc_info)}"
+
+        if record.stack_info:
+            message = f"{message}\n{record.stack_info}"
 
         return f"{ts} | {level_padded} | {name_padded}:{line_padded} {func_padded} | {message}"
 
 
 def setup_logging(config_path: str = "config.toml") -> None:
-    # Загружаем конфиг
     cfg: dict = {}
     path = Path(config_path)
     if path.exists():
@@ -54,19 +59,16 @@ def setup_logging(config_path: str = "config.toml") -> None:
             cfg = tomllib.load(f)
 
     log_cfg = cfg.get("logging", {})
-    level = log_cfg.get("level", "INFO").upper()
-    to_file = log_cfg.get("to_file", False)
-    log_file = log_cfg.get("file", "logs/app.log")
+    level = str(log_cfg.get("level", "INFO")).upper()
+    to_file = bool(log_cfg.get("to_file", False))
+    log_file = str(log_cfg.get("file", "logs/app.log"))
 
-    # форматтеры
     stream_formatter = UTCFormatter(use_color=True)
     file_formatter = UTCFormatter(use_color=False)
 
-    # stdout handler
     stream_handler = logging.StreamHandler(sys.stdout)
     stream_handler.setFormatter(stream_formatter)
 
-    # корневой логгер
     root = logging.getLogger()
     root.setLevel(level)
     root.handlers.clear()
