@@ -1,6 +1,4 @@
-from __future__ import annotations
-
-from collections.abc import AsyncGenerator, AsyncIterator
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -33,8 +31,3 @@ async_session_maker = async_sessionmaker(
     expire_on_commit=False,
     class_=AsyncSession,
 )
-
-
-async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
-    async with async_session_maker() as session:
-        yield session
