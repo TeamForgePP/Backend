@@ -4,7 +4,7 @@ from typing import Any
 from fastapi import HTTPException, Request, Response, status
 
 from src.config import cfg
-from src.core.db.repositories.UsersRepo import UsersRepo
+from src.core.db import get_uow
 from src.core.logger import get_logger
 from src.core.redis.login_attempts import LoginAttemptsService
 from src.core.redis.uow import RedisUnitOfWork
@@ -24,7 +24,6 @@ class UserAuthService:
         request: Request,
         data: UserLoginRequest,
         response: Response,
-        users_repo: UsersRepo,
     ) -> UserTokenPair:
         redis_uow = RedisUnitOfWork()
         attempts_service = LoginAttemptsService(redis_uow.redis)
@@ -45,8 +44,8 @@ class UserAuthService:
                 detail="too many login attempts, try again later",
             )
 
-        # ищем юзера по email
-        user = await users_repo.get_by_email(data.email)
+        async with get_uow() as uow:
+            user = await uow.users.get_by_email(data.email)
 
         if user is None:
             attempts = await attempts_service.increment(identifier, ip=client_ip)
@@ -61,14 +60,9 @@ class UserAuthService:
                 detail=f"invalid credentials (attempts: {attempts})",
             )
 
-        # берём хеш пароля (поддержка разных имён поля)
-        hashed_password = getattr(user, "password_hash", None) or getattr(
-            user,
-            "password",
-            None,
-        )
+        hashed_password = user.password
 
-        if not hashed_password or not verify_password(data.password, hashed_password):
+        if not verify_password(data.password, hashed_password):
             attempts = await attempts_service.increment(identifier, ip=client_ip)
             logger.warning(
                 "failed user login (bad password) | email=%s | ip=%s | attempts=%s",
@@ -85,13 +79,13 @@ class UserAuthService:
 
         logger.info(
             "user login success | user_id=%s | email=%s | ip=%s",
-            getattr(user, "id", None),
+            user.id,
             identifier,
             client_ip,
         )
 
         token_service = get_user_token_service()
-        user_id_str = str(getattr(user, "id", ""))
+        user_id_str = str(user.id)
 
         tokens = UserTokenPair(
             access_token=token_service.create_access(
@@ -139,27 +133,16 @@ class UserAuthService:
                 detail="refresh token rejected",
             )
 
-        user_id = payload.get("sub")
-        email = payload.get("email")
-
-        if not isinstance(email, str):
-            logger.warning(
-                "user refresh payload without valid email | ip=%s | email=%r",
-                client_ip,
-                email,
-            )
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="invalid refresh token payload",
-            )
+        user_id = str(payload["sub"])
+        email = str(payload["email"])
 
         tokens = UserTokenPair(
             access_token=token_service.create_access(
-                user_id=str(user_id),
+                user_id=user_id,
                 email=email,
             ),
             refresh_token=token_service.create_refresh(
-                user_id=str(user_id),
+                user_id=user_id,
                 email=email,
             ),
         )
