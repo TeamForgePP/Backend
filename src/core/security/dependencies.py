@@ -111,8 +111,10 @@ def get_principal_context(request: Request) -> PrincipalContext:
     payload = cast(RawPayload, raw_payload_dict)
 
     if admin_token_service.is_admin_access(raw_payload_dict):
-        sub = payload.get("sub") or "admin"
-        return PrincipalContext(sub=sub, role="admin")
+        sub_val = payload.get("sub")
+        if not isinstance(sub_val, str):
+            sub_val = "admin"
+        return PrincipalContext(sub=sub_val, role="admin")
 
     if payload.get("typ") == "refresh":
         raise HTTPException(
@@ -121,15 +123,15 @@ def get_principal_context(request: Request) -> PrincipalContext:
         )
 
     if payload.get("role") == "user" and payload.get("typ") == "access":
-        sub = payload.get("sub")
+        sub_val = payload.get("sub")
 
-        if not isinstance(sub, str):
+        if not isinstance(sub_val, str):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="token missing subject",
             )
 
-        return PrincipalContext(sub=sub, role="user")
+        return PrincipalContext(sub=sub_val, role="user")
 
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
