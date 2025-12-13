@@ -27,6 +27,7 @@ class UTCFormatter(logging.Formatter):
         ts = self.formatTime(record)
 
         level = record.levelname
+
         level_padded = f"{level:<7}"
 
         if self.use_color:
