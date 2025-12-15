@@ -25,8 +25,14 @@ class AccessContext:
     token_type: TokenType
 
 
+@dataclass
+class PrincipalContext:
+    sub: str
+    role: Role
+
+
 def _get_raw_token_from_cookies(request: Request) -> str:
-    cookie_name = cfg.admin.cookies.access
+    cookie_name = cfg.admin.cookies.access  # сейчас и юзер, и админ сидят в этих куках
     token = request.cookies.get(cookie_name)
 
     if not token:
@@ -87,3 +93,56 @@ def require_admin(access: AccessContext = access_context_dep) -> AccessContext:
         )
 
     return access
+
+
+def get_principal_context(request: Request) -> PrincipalContext:
+    token = _get_raw_token_from_cookies(request)
+    admin_token_service = get_admin_token_service()
+
+    try:
+        payload_dict = admin_token_service.decode(token)
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="invalid token",
+        ) from err
+
+    raw_payload_dict = cast(dict[str, Any], payload_dict)
+    payload = cast(RawPayload, raw_payload_dict)
+
+    if admin_token_service.is_admin_access(raw_payload_dict):
+        sub_val = payload.get("sub")
+        if not isinstance(sub_val, str):
+            sub_val = "admin"
+        return PrincipalContext(sub=sub_val, role="admin")
+
+    if payload.get("typ") == "refresh":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="refresh token is not allowed here",
+        )
+
+    if payload.get("role") == "user" and payload.get("typ") == "access":
+        sub_val = payload.get("sub")
+
+        if not isinstance(sub_val, str):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="token missing subject",
+            )
+
+        return PrincipalContext(sub=sub_val, role="user")
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="token rejected",
+    )
+
+
+principal_context_dep = Depends(get_principal_context)
+
+
+def require_user_or_admin(
+    principal: PrincipalContext = principal_context_dep,
+) -> PrincipalContext:
+    return principal
