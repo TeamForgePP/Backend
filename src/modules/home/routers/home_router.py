@@ -16,8 +16,10 @@ admin_dep = Depends(require_admin)
     status_code=status.HTTP_201_CREATED,
     name="create_project",
 )
-async def create_project(data: CreateProjectRequest) -> BasicResponse:
-    return await HomeService.create_project(data)
+async def create_project(
+    data: CreateProjectRequest, _admin: AccessContext = admin_dep
+) -> BasicResponse:
+    return await HomeService.create_project(data, UUID(_admin.sub))
 
 
 @router.get(
@@ -27,7 +29,7 @@ async def create_project(data: CreateProjectRequest) -> BasicResponse:
     name="get_home_info",
 )
 async def get_home_info(_admin: AccessContext = admin_dep) -> ProjectsResponse:
-    return await HomeService.get_home_info(UUID(_admin.sub))
+    return await HomeService.get_home_info(UUID(_admin.sub), access=admin_dep)
 
 
 @router.post(
@@ -47,4 +49,4 @@ async def leave_project(project_id: UUID, _admin: AccessContext = admin_dep) -> 
     name="delete_project",
 )
 async def delete_project(project_id: UUID, _admin: AccessContext = admin_dep) -> BasicResponse:
-    return await HomeService.delete_project(UUID(_admin.sub), project_id)
+    return await HomeService.delete_project(UUID(_admin.sub), project_id, access=admin_dep)
