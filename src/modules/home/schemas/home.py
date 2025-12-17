@@ -10,6 +10,7 @@ class SprintMap(BaseModel):
     id: UUID
     name: str = Field(max_length=100)
     seq: int
+    active: bool = Field(default=False)
     deadline: date
 
 
@@ -25,7 +26,7 @@ class Project(BaseModel):
     current_sprint_name: str = Field(max_length=100)
     current_sprint_seq: int
     role: list[TeamRole]
-    nearest_deadline: date | None
+    nearest_deadline: date | None = None
     sprint_map: list[SprintMap]
     allowed_actions: AllowedActions
 
