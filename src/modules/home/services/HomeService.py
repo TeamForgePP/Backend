@@ -297,10 +297,13 @@ class HomeService:
                     detail="Only teamlead or admin can delete project",
                 )
 
-            await uow.teams.delete_by_project_id(project_id=project_id)
-            await uow.project_roles.delete_all_roles_in_project(project_id=project_id)
-            await uow.invitations.delete_all_invitations_in_project(project_id=project_id)
-            await uow.notifications.delete_all_notifications_in_project(project_id=project_id)
+            teams = await uow.teams.get_by_project(project_id=project_id)
+
+            for team in teams:
+                if team.status == UserStatus.Owner or team.status == UserStatus.Member:
+                    user = await uow.users.get_by_id(user_id=team.user_id)
+                    if user:
+                        user.in_team = False
 
             deleted = await uow.projects.delete(project_id)
             if not deleted:
