@@ -72,3 +72,19 @@ class ProjectRoleRepo:
         )
         await self._session.flush()
         return (result.rowcount or 0) > 0
+
+    async def delete_all_roles(self, project_id: UUID, user_id: UUID) -> bool:
+        result = await self._session.execute(
+            delete(ProjectRole).where(
+                ProjectRole.project_id == project_id, ProjectRole.user_id == user_id
+            )
+        )
+        await self._session.flush()
+        return (result.rowcount or 0) > 0
+
+    async def delete_all_roles_in_project(self, project_id: UUID) -> bool:
+        result = await self._session.execute(
+            delete(ProjectRole).where(ProjectRole.project_id == project_id)
+        )
+        await self._session.flush()
+        return (result.rowcount or 0) > 0
