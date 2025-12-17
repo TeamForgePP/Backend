@@ -59,10 +59,3 @@ class InvitationsRepo(BaseRepository):
         )
         await self._session.flush()
         return (result.rowcount or 0) > 0
-
-    async def delete_all_invitations_in_project(self, project_id: UUID) -> bool:
-        result = await self._session.execute(
-            sql_delete(Invitations).where(Invitations.project_id == project_id)
-        )
-        await self._session.flush()
-        return (result.rowcount or 0) > 0

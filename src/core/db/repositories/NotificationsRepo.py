@@ -72,10 +72,3 @@ class NotificationsRepo(BaseRepository):
         )
         await self._session.flush()
         return (result.rowcount or 0) > 0
-
-    async def delete_all_notifications_in_project(self, project_id: UUID) -> bool:
-        result = await self._session.execute(
-            sql_delete(Notifications).where(Notifications.project_id == project_id)
-        )
-        await self._session.flush()
-        return (result.rowcount or 0) > 0

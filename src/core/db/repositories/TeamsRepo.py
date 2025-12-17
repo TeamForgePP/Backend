@@ -62,10 +62,3 @@ class TeamsRepo(BaseRepository):
         )
         await self._session.flush()
         return (result.rowcount or 0) > 0
-
-    async def delete_by_project_id(self, project_id: UUID) -> bool:
-        result = await self._session.execute(
-            sql_delete(Teams).where(Teams.project_id == project_id)
-        )
-        await self._session.flush()
-        return (result.rowcount or 0) > 0
