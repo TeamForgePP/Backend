@@ -1,6 +1,7 @@
 from typing import Any, cast
 from uuid import UUID
 
+from sqlalchemy import delete as sql_delete
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -49,3 +50,12 @@ class InvitationsRepo(BaseRepository):
         await self._session.delete(invitation)
         await self._session.flush()
         return True
+
+    async def delete_all_user_invitations(self, project_id: UUID, user_id: UUID) -> bool:
+        result = await self._session.execute(
+            sql_delete(Invitations).where(
+                Invitations.project_id == project_id, Invitations.invited_user_id == user_id
+            )
+        )
+        await self._session.flush()
+        return (result.rowcount or 0) > 0

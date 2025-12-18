@@ -1,6 +1,7 @@
 from typing import Any, cast
 from uuid import UUID
 
+from sqlalchemy import delete as sql_delete
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -62,3 +63,12 @@ class NotificationsRepo(BaseRepository):
         await self._session.delete(notification)
         await self._session.flush()
         return True
+
+    async def delete_all_user_notifications(self, project_id: UUID, user_id: UUID) -> bool:
+        result = await self._session.execute(
+            sql_delete(Notifications).where(
+                Notifications.project_id == project_id, Notifications.user_id == user_id
+            )
+        )
+        await self._session.flush()
+        return (result.rowcount or 0) > 0
