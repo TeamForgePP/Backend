@@ -75,12 +75,16 @@ class KanbanService:
                         all_roles: list[TeamRole] = []
                         for assignee_id in assignee_ids:
                             user = await uow.users.get_by_id(assignee_id)
+                            if not user:
+                                raise HTTPException(
+                                    status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+                                )
                             performes.append(
                                 Performer(
                                     id=assignee_id,
                                     first_name=user.first_name,
                                     last_name=user.last_name,
-                                    avatar_url=user.avatar_url,
+                                    avatar_url=user.avatar_url or "",
                                 )
                             )
                             roles = await uow.project_roles.get_roles_for_user_in_project(
@@ -95,7 +99,7 @@ class KanbanService:
                             title=task.title,
                             tags=all_roles,
                             status=task.status,
-                            deadline=task.deadline,
+                            deadline=task.deadline,  # type: ignore
                             priority=task.priority,
                             performes=performes,
                             key=task.key,
@@ -154,12 +158,16 @@ class KanbanService:
                         all_roles: list[TeamRole] = []
                         for assignee_id in assignee_ids:
                             user = await uow.users.get_by_id(assignee_id)
+                            if not user:
+                                raise HTTPException(
+                                    status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+                                )
                             performes.append(
                                 Performer(
                                     id=assignee_id,
                                     first_name=user.first_name,
                                     last_name=user.last_name,
-                                    avatar_url=user.avatar_url,
+                                    avatar_url=user.avatar_url or "",
                                 )
                             )
                             roles = await uow.project_roles.get_roles_for_user_in_project(
@@ -174,7 +182,7 @@ class KanbanService:
                             title=task.title,
                             tags=all_roles,
                             status=task.status,
-                            deadline=task.deadline,
+                            deadline=task.deadline,  # type: ignore
                             priority=task.priority,
                             performes=performes,
                             key=task.key,
@@ -217,6 +225,10 @@ class KanbanService:
                     project_response = Project(id=project.id, name=project.name)
 
                     sprint = await uow.sprints.get_by_id(sprint_id)
+                    if not sprint:
+                        raise HTTPException(
+                            status_code=status.HTTP_404_NOT_FOUND, detail="Sprint not found"
+                        )
 
                     sprint_response = SelectedSprint(id=sprint_id, seq=sprint.seq)
 
@@ -234,12 +246,16 @@ class KanbanService:
                         all_roles: list[TeamRole] = []
                         for assignee_id in assignee_ids:
                             user = await uow.users.get_by_id(assignee_id)
+                            if not user:
+                                raise HTTPException(
+                                    status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+                                )
                             performes.append(
                                 Performer(
                                     id=assignee_id,
                                     first_name=user.first_name,
                                     last_name=user.last_name,
-                                    avatar_url=user.avatar_url,
+                                    avatar_url=user.avatar_url or "",
                                 )
                             )
                             roles = await uow.project_roles.get_roles_for_user_in_project(
@@ -254,7 +270,7 @@ class KanbanService:
                             title=task.title,
                             tags=all_roles,
                             status=task.status,
-                            deadline=task.deadline,
+                            deadline=task.deadline,  # type: ignore
                             priority=task.priority,
                             performes=performes,
                             key=task.key,
@@ -279,6 +295,10 @@ class KanbanService:
                     project_response = Project(id=project.id, name=project.name)
 
                     sprint = await uow.sprints.get_by_id(sprint_id)
+                    if not sprint:
+                        raise HTTPException(
+                            status_code=status.HTTP_404_NOT_FOUND, detail="Sprint not found"
+                        )
 
                     sprint_response = SelectedSprint(id=sprint_id, seq=sprint.seq)
 
@@ -296,12 +316,16 @@ class KanbanService:
                         all_roles: list[TeamRole] = []
                         for assignee_id in assignee_ids:
                             user = await uow.users.get_by_id(assignee_id)
+                            if not user:
+                                raise HTTPException(
+                                    status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+                                )
                             performes.append(
                                 Performer(
                                     id=assignee_id,
                                     first_name=user.first_name,
                                     last_name=user.last_name,
-                                    avatar_url=user.avatar_url,
+                                    avatar_url=user.avatar_url or "",
                                 )
                             )
                             roles = await uow.project_roles.get_roles_for_user_in_project(
@@ -316,7 +340,7 @@ class KanbanService:
                             title=task.title,
                             tags=all_roles,
                             status=task.status,
-                            deadline=task.deadline,
+                            deadline=task.deadline,  # type: ignore
                             priority=task.priority,
                             performes=performes,
                             key=task.key,
@@ -359,11 +383,15 @@ class KanbanService:
                     members_info: list[Performer] = []
                     for member in members:
                         user = await uow.users.get_by_id(member.user_id)
+                        if not user:
+                            raise HTTPException(
+                                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+                            )
                         info = Performer(
                             id=member.user_id,
                             first_name=user.first_name,
                             last_name=user.last_name,
-                            avatar_url=user.avatar_url,
+                            avatar_url=user.avatar_url or "",
                         )
                         members_info.append(info)
 
@@ -382,11 +410,15 @@ class KanbanService:
                     members_info: list[Performer] = []
                     for member in members:
                         user = await uow.users.get_by_id(member.user_id)
+                        if not user:
+                            raise HTTPException(
+                                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+                            )
                         info = Performer(
                             id=member.user_id,
                             first_name=user.first_name,
                             last_name=user.last_name,
-                            avatar_url=user.avatar_url,
+                            avatar_url=user.avatar_url or "",
                         )
                         members_info.append(info)
 
@@ -409,26 +441,34 @@ class KanbanService:
         async with get_uow() as uow:
             try:
                 task = await uow.tasks.get_by_id(task_id)
+                if not task:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
+                    )
 
                 assignee_ids = await uow.performes.get_assignee_ids_by_task(task_id)
                 users_response: list[Performer] = []
                 for assignee_id in assignee_ids:
                     user = await uow.users.get_by_id(assignee_id)
+                    if not user:
+                        raise HTTPException(
+                            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+                        )
                     info = Performer(
                         id=assignee_id,
                         first_name=user.first_name,
                         last_name=user.last_name,
-                        avatar_url=user.avatar_url,
+                        avatar_url=user.avatar_url or "",
                     )
                     users_response.append(info)
 
                 task_response = TaskResponse(
                     id=task_id,
                     title=task.title,
-                    description=task.description,
+                    description=task.description or "",
                     users=users_response,
                     priority=task.priority,
-                    deadline=task.deadline,
+                    deadline=task.deadline,  # type: ignore
                 )
 
                 return task_response
