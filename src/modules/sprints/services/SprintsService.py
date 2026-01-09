@@ -28,6 +28,11 @@ class SprintsService:
                 if _user_role == "user":
                     user_id = UUID(_user_sub)
                     project = await uow.projects.get_uncompleted_project_by_user_id(user_id)
+                    if not project:
+                        raise HTTPException(
+                            status_code=status.HTTP_404_NOT_FOUND,
+                            detail="You don't have uncompleted project",
+                        )
 
                     sprints = await uow.sprints.get_by_project_id(project.id)
 
@@ -226,6 +231,11 @@ class SprintsService:
         if _user_role == "user":
             user_id = UUID(_user_sub)
             project = await uow.projects.get_uncompleted_project_by_user_id(user_id)
+            if not project:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="You don't have uncompleted project",
+                )
 
             await uow.sprints.create(
                 {
