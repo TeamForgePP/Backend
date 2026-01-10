@@ -1,9 +1,11 @@
-from __future__ import annotations
-
 from uuid import UUID
 
 from fastapi import HTTPException, status
+from sqlalchemy import select
 
+from src.core.db.models.groups import Groups
+from src.core.db.models.teams import Teams
+from src.core.db.models.users import Users
 from src.core.db.UnitOfWork import get_uow
 from src.core.logger import get_logger
 from src.core.security.dependencies import PrincipalContext
@@ -13,79 +15,120 @@ logger = get_logger("modules.profile")
 
 
 class ProfileService:
-    @staticmethod
-    async def _get_user_safe(uow, user_id: UUID):
-        user = await uow.users.get_by_id(user_id)
-        if user is None:
-            logger.warning("User %s not found when accessing profile", user_id)
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found",
-            )
-        return user
-
-    @staticmethod
-    def _build_full_name(user) -> str:
-        parts: list[str] = []
-        if user.last_name:
-            parts.append(user.last_name)
-        if user.first_name:
-            parts.append(user.first_name)
-        if user.patronymic:
-            parts.append(user.patronymic)
-        return " ".join(parts)
-
-    @staticmethod
-    async def _build_profile_response(uow, user) -> ProfileResponse:
-        group_name: str | None = None
-        if getattr(user, "group_id", None) is not None:
-            group = await uow.groups.get_by_id(user.group_id)
-            if group is not None:
-                group_name = group.name
-        teams: list[str] = []
-
-        return ProfileResponse(
-            full_name=ProfileService._build_full_name(user),
-            group=group_name,
-            role=str(user.user_type.value),
-            teams=teams,
-            email=user.email,
-        )
-
-    @staticmethod
-    async def get_profile(principal: PrincipalContext) -> ProfileResponse:
-        user_id = UUID(principal.sub)
+    @classmethod
+    async def get_profile(cls, principal: PrincipalContext) -> ProfileResponse:
+        user_id = cls._get_user_id_from_principal(principal)
 
         async with get_uow() as uow:
-            user = await ProfileService._get_user_safe(uow, user_id)
-            return await ProfileService._build_profile_response(uow, user)
+            db_user = await uow.users.get_by_id(user_id)
+            if db_user is None:
+                logger.error("User %s not found in DB", user_id)
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="user not found",
+                )
 
-    @staticmethod
+            group_name, team_names = await cls._load_group_and_teams(uow, db_user)
+
+        return cls._build_profile_response(db_user, group_name, team_names)
+
+    @classmethod
     async def update_profile(
+        cls,
         principal: PrincipalContext,
         data: ProfileUpdateRequest,
     ) -> ProfileResponse:
-        user_id = UUID(principal.sub)
+        user_id = cls._get_user_id_from_principal(principal)
 
         async with get_uow() as uow:
-            user = await ProfileService._get_user_safe(uow, user_id)
-
-            # Обновляем только те поля, которые реально пришли
-            if data.last_name is not None:
-                user.last_name = data.last_name
+            db_user = await uow.users.get_by_id(user_id)
+            if db_user is None:
+                logger.error("User %s not found in DB", user_id)
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="user not found",
+                )
 
             if data.first_name is not None:
-                user.first_name = data.first_name
+                db_user.first_name = data.first_name
+
+            if data.last_name is not None:
+                db_user.last_name = data.last_name
 
             if data.patronymic is not None:
-                user.patronymic = data.patronymic
+                db_user.patronymic = data.patronymic
 
-            if data.email is not None:
-                user.email = data.email
+            if data.group_id is not None:
+                group_result = await uow.session.execute(
+                    select(Groups.id).where(Groups.id == data.group_id),
+                )
+                if group_result.first() is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="group not found",
+                    )
+                db_user.group_id = data.group_id
 
             await uow.session.flush()
-            await uow.commit()
+            await uow.session.refresh(db_user)
 
-            logger.info("User %s updated profile", user_id)
+            group_name, team_names = await cls._load_group_and_teams(uow, db_user)
 
-            return await ProfileService._build_profile_response(uow, user)
+        return cls._build_profile_response(db_user, group_name, team_names)
+
+    @staticmethod
+    def _get_user_id_from_principal(principal: PrincipalContext) -> UUID:
+        if principal.role != "user":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="only users have profile",
+            )
+
+        try:
+            return UUID(principal.sub)
+        except ValueError as exc:
+            logger.error("Invalid user id in token subject: %s", principal.sub)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="invalid token subject",
+            ) from exc
+
+    @staticmethod
+    async def _load_group_and_teams(
+        uow,
+        user: Users,
+    ) -> tuple[str | None, list[str]]:
+        group_name: str | None = None
+        team_names: list[str] = []
+
+        if user.group_id is not None:
+            group_result = await uow.session.execute(
+                select(Groups.name).where(Groups.id == user.group_id),
+            )
+            group_row = group_result.first()
+            if group_row is not None:
+                group_name = group_row[0]
+
+            teams_result = await uow.session.execute(
+                select(Teams.name).where(Teams.group_id == user.group_id),
+            )
+            team_names = [row[0] for row in teams_result.all()]
+
+        return group_name, team_names
+
+    @staticmethod
+    def _build_profile_response(
+        user: Users,
+        group_name: str | None,
+        team_names: list[str],
+    ) -> ProfileResponse:
+        patronymic_part = f" {user.patronymic}" if user.patronymic else ""
+        full_name = f"{user.last_name} {user.first_name}{patronymic_part}"
+
+        return ProfileResponse(
+            full_name=full_name,
+            group=group_name,
+            role=None,
+            teams=team_names,
+            email=user.email,
+        )
