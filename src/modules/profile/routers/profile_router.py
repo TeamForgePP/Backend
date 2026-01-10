@@ -16,9 +16,7 @@ PrincipalContextDep = Annotated[PrincipalContext, Depends(require_user_or_admin)
     response_model=ProfileResponse,
     status_code=status.HTTP_200_OK,
 )
-async def get_profile(
-    principal: PrincipalContextDep,
-) -> ProfileResponse:
+async def get_profile(principal: PrincipalContextDep) -> ProfileResponse:
     return await ProfileService.get_profile(principal)
 
 
@@ -28,7 +26,6 @@ async def get_profile(
     status_code=status.HTTP_200_OK,
 )
 async def update_profile(
-    data: ProfileUpdateRequest,
-    principal: PrincipalContextDep,
+    data: ProfileUpdateRequest, principal: PrincipalContextDep
 ) -> ProfileResponse:
     return await ProfileService.update_profile(principal, data)
