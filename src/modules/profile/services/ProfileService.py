@@ -3,7 +3,9 @@ from uuid import UUID
 from fastapi import HTTPException, status
 from sqlalchemy import select
 
+from src.core.db.enums import TeamRole, UserStatus
 from src.core.db.models.groups import Groups
+from src.core.db.models.projects import Projects
 from src.core.db.models.teams import Teams
 from src.core.db.models.users import Users
 from src.core.db.UnitOfWork import get_uow
@@ -28,9 +30,10 @@ class ProfileService:
                     detail="user not found",
                 )
 
-            group_name, team_names = await cls._load_group_and_teams(uow, db_user)
+            group_name = await cls._load_group_name(uow, db_user)
+            team_names, role_value = await cls._load_team_and_role(uow, db_user)
 
-        return cls._build_profile_response(db_user, group_name, team_names)
+        return cls._build_profile_response(db_user, group_name, team_names, role_value)
 
     @classmethod
     async def update_profile(
@@ -59,6 +62,7 @@ class ProfileService:
                 db_user.patronymic = data.patronymic
 
             if data.group_id is not None:
+                # проверяем, что группа существует
                 group_result = await uow.session.execute(
                     select(Groups.id).where(Groups.id == data.group_id),
                 )
@@ -72,9 +76,10 @@ class ProfileService:
             await uow.session.flush()
             await uow.session.refresh(db_user)
 
-            group_name, team_names = await cls._load_group_and_teams(uow, db_user)
+            group_name = await cls._load_group_name(uow, db_user)
+            team_names, role_value = await cls._load_team_and_role(uow, db_user)
 
-        return cls._build_profile_response(db_user, group_name, team_names)
+        return cls._build_profile_response(db_user, group_name, team_names, role_value)
 
     @staticmethod
     def _get_user_id_from_principal(principal: PrincipalContext) -> UUID:
@@ -94,33 +99,67 @@ class ProfileService:
             ) from exc
 
     @staticmethod
-    async def _load_group_and_teams(
+    async def _load_group_name(uow, user: Users) -> str | None:
+        if user.group_id is None:
+            return None
+
+        result = await uow.session.execute(
+            select(Groups.name).where(Groups.id == user.group_id),
+        )
+        row = result.first()
+        return row[0] if row is not None else None
+
+    @staticmethod
+    async def _load_team_and_role(
         uow,
         user: Users,
-    ) -> tuple[str | None, list[str]]:
-        group_name: str | None = None
-        team_names: list[str] = []
+    ) -> tuple[list[str], str | None]:
+        if not user.in_team:
+            return ["-"], "-"
 
-        if user.group_id is not None:
-            group_result = await uow.session.execute(
-                select(Groups.name).where(Groups.id == user.group_id),
-            )
-            group_row = group_result.first()
-            if group_row is not None:
-                group_name = group_row[0]
+        team_result = await uow.session.execute(
+            select(Teams.project_id).where(
+                Teams.user_id == user.id,
+                Teams.status == UserStatus.Member,
+            ),
+        )
+        project_ids = [row[0] for row in team_result.all()]
 
-            teams_result = await uow.session.execute(
-                select(Teams.name).where(Teams.group_id == user.group_id),
-            )
-            team_names = [row[0] for row in teams_result.all()]
+        if not project_ids:
+            return ["-"], "-"
 
-        return group_name, team_names
+        projects_result = await uow.session.execute(
+            select(Projects).where(
+                Projects.id.in_(project_ids),
+                Projects.is_completed.is_(False),
+            ),
+        )
+        projects = projects_result.scalars().all()
+
+        if not projects:
+            return ["-"], "-"
+
+        active_project = projects[0]
+        team_names = [active_project.name]
+
+        roles: list[TeamRole] = await uow.project_roles.get_roles_for_user_in_project(
+            user.id,
+            active_project.id,
+        )
+
+        if not roles:
+            role_value: str | None = "-"
+        else:
+            role_value = ", ".join(role.value.upper() for role in roles)
+
+        return team_names, role_value
 
     @staticmethod
     def _build_profile_response(
         user: Users,
         group_name: str | None,
         team_names: list[str],
+        role_value: str | None,
     ) -> ProfileResponse:
         patronymic_part = f" {user.patronymic}" if user.patronymic else ""
         full_name = f"{user.last_name} {user.first_name}{patronymic_part}"
@@ -128,7 +167,7 @@ class ProfileService:
         return ProfileResponse(
             full_name=full_name,
             group=group_name,
-            role=None,
+            role=role_value,
             teams=team_names,
             email=user.email,
         )
