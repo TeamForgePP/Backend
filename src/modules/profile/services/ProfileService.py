@@ -30,8 +30,8 @@ class ProfileService:
                     detail="user not found",
                 )
 
-            group_name = await cls._load_group_name(uow, db_user)
-            team_names, role_value = await cls._load_team_and_role(uow, db_user)
+            group_name = await cls._get_group_name(uow, db_user)
+            team_names, role_value = await cls._get_team_and_role(uow, db_user)
 
         return cls._build_profile_response(db_user, group_name, team_names, role_value)
 
@@ -76,8 +76,8 @@ class ProfileService:
             await uow.session.flush()
             await uow.session.refresh(db_user)
 
-            group_name = await cls._load_group_name(uow, db_user)
-            team_names, role_value = await cls._load_team_and_role(uow, db_user)
+            group_name = await cls._get_group_name(uow, db_user)
+            team_names, role_value = await cls._get_team_and_role(uow, db_user)
 
         return cls._build_profile_response(db_user, group_name, team_names, role_value)
 
@@ -99,7 +99,7 @@ class ProfileService:
             ) from exc
 
     @staticmethod
-    async def _load_group_name(uow, user: Users) -> str | None:
+    async def _get_group_name(uow, user: Users) -> str | None:
         if user.group_id is None:
             return None
 
@@ -110,7 +110,7 @@ class ProfileService:
         return row[0] if row is not None else None
 
     @staticmethod
-    async def _load_team_and_role(
+    async def _get_team_and_role(
         uow,
         user: Users,
     ) -> tuple[list[str], str | None]:
