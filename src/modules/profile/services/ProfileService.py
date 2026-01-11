@@ -8,7 +8,7 @@ from src.core.db.models.groups import Groups
 from src.core.db.models.projects import Projects
 from src.core.db.models.teams import Teams
 from src.core.db.models.users import Users
-from src.core.db.UnitOfWork import get_uow
+from src.core.db.UnitOfWork import UnitOfWork, get_uow
 from src.core.logger import get_logger
 from src.core.security.dependencies import PrincipalContext
 from src.modules.profile.schemas.profile import ProfileResponse, ProfileUpdateRequest
@@ -30,8 +30,8 @@ class ProfileService:
                     detail="user not found",
                 )
 
-            group_name = await cls._get_group_name(uow, db_user)
-            team_names, role_value = await cls._get_team_and_role(uow, db_user)
+            group_name = await cls._load_group_name(uow, db_user)
+            team_names, role_value = await cls._load_team_and_role(uow, db_user)
 
         return cls._build_profile_response(db_user, group_name, team_names, role_value)
 
@@ -62,7 +62,6 @@ class ProfileService:
                 db_user.patronymic = data.patronymic
 
             if data.group_id is not None:
-                # проверяем, что группа существует
                 group_result = await uow.session.execute(
                     select(Groups.id).where(Groups.id == data.group_id),
                 )
@@ -76,8 +75,8 @@ class ProfileService:
             await uow.session.flush()
             await uow.session.refresh(db_user)
 
-            group_name = await cls._get_group_name(uow, db_user)
-            team_names, role_value = await cls._get_team_and_role(uow, db_user)
+            group_name = await cls._load_group_name(uow, db_user)
+            team_names, role_value = await cls._load_team_and_role(uow, db_user)
 
         return cls._build_profile_response(db_user, group_name, team_names, role_value)
 
@@ -99,7 +98,7 @@ class ProfileService:
             ) from exc
 
     @staticmethod
-    async def _get_group_name(uow, user: Users) -> str | None:
+    async def _load_group_name(uow, user: Users) -> str | None:
         if user.group_id is None:
             return None
 
@@ -110,8 +109,8 @@ class ProfileService:
         return row[0] if row is not None else None
 
     @staticmethod
-    async def _get_team_and_role(
-        uow,
+    async def _load_team_and_role(
+        uow: UnitOfWork,
         user: Users,
     ) -> tuple[list[str], str | None]:
         if not user.in_team:
