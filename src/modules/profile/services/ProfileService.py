@@ -98,7 +98,7 @@ class ProfileService:
             ) from exc
 
     @staticmethod
-    async def _load_group_name(uow, user: Users) -> str | None:
+    async def _load_group_name(uow: UnitOfWork, user: Users) -> str | None:
         if user.group_id is None:
             return None
 
