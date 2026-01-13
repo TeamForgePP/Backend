@@ -17,6 +17,22 @@ class ProjectsRepo(BaseRepository):
         project = await self._session.get(Projects, project_id)
         return cast(Projects | None, project)
 
+    async def get_uncompleted_project_by_user_id(self, user_id: UUID) -> Projects | None:
+        project_ids = (
+            (await self._session.execute(select(Teams.project_id).where(Teams.user_id == user_id)))
+            .scalars()
+            .all()
+        )
+        if not project_ids:
+            return None
+
+        result = await self._session.execute(
+            select(Projects)
+            .where(Projects.id.in_(project_ids), Projects.is_completed.is_(False))
+            .limit(1)
+        )
+        return cast(Projects | None, result.scalar_one_or_none())
+
     async def get_by_name(self, name: str) -> Projects | None:
         result = await self._session.execute(select(Projects).where(Projects.name == name))
         return cast(Projects | None, result.scalar_one_or_none())

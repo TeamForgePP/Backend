@@ -24,183 +24,193 @@ logger.setLevel(logging.INFO)
 
 
 class KanbanService:
+    # ---------------- internal helpers ---------------- #
+
+    @staticmethod
+    async def _resolve_project(uow: UnitOfWork, user_sub: str, user_role: Role) -> tuple[UUID, str]:
+        if user_role == "user":
+            user_id = UUID(user_sub)
+            project = await uow.projects.get_uncompleted_project_by_user_id(user_id)
+            if not project:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+                )
+            return project.id, project.name
+
+        if user_role == "admin":
+            projects = await uow.projects.get_all_uncompleted_projects()
+            if not projects:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="Projects not found"
+                )
+            project = projects[0]
+            return project.id, project.name
+
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized user")
+
+    @staticmethod
+    async def _resolve_current_sprint_in_project(
+        uow: UnitOfWork, project_id: UUID
+    ) -> SelectedSprint:
+        sprints = await uow.sprints.get_by_project_id(project_id)
+
+        current: list[SelectedSprint] = []
+        for sprint in sprints:
+            if sprint.status == "active":
+                current.append(SelectedSprint(id=sprint.id, seq=sprint.seq))
+
+        if not current:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sprints not found")
+
+        return min(current, key=lambda s: s.seq)
+
+    @staticmethod
+    async def _get_performer(uow: UnitOfWork, user_id: UUID) -> Performer:
+        user = await uow.users.get_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+        return Performer(
+            id=user_id,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            avatar_url=user.avatar_url or "",
+        )
+
+    @staticmethod
+    async def _collect_unique_roles_for_users_in_project(
+        uow: UnitOfWork,
+        project_id: UUID,
+        user_ids: list[UUID],
+    ) -> list[TeamRole]:
+        roles_unique: list[TeamRole] = []
+        for user_id in user_ids:
+            roles = await uow.project_roles.get_roles_for_user_in_project(project_id, user_id)
+            for role in roles:
+                if role not in roles_unique:
+                    roles_unique.append(role)
+        return roles_unique
+
+    @classmethod
+    async def _build_tasks_for_sprint(
+        cls, uow: UnitOfWork, project_id: UUID, sprint_id: UUID
+    ) -> list[Task]:
+        tasks = await uow.tasks.get_by_sprint_id(sprint_id)
+        if not tasks:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tasks not found")
+
+        tasks_response: list[Task] = []
+
+        for task in tasks:
+            assignee_ids = await uow.performes.get_assignee_ids_by_task(task.id)
+
+            performes: list[Performer] = []
+            for assignee_id in assignee_ids:
+                performes.append(await cls._get_performer(uow, assignee_id))
+
+            all_roles = await cls._collect_unique_roles_for_users_in_project(
+                uow, project_id, assignee_ids
+            )
+
+            tasks_response.append(
+                Task(
+                    id=task.id,
+                    title=task.title,
+                    tags=all_roles,
+                    status=task.status,
+                    deadline=task.deadline,  # type: ignore[assignment]
+                    priority=task.priority,
+                    performes=performes,
+                    key=task.key,
+                )
+            )
+
+        return tasks_response
+
+    @classmethod
+    async def _build_members_for_project(cls, uow: UnitOfWork, project_id: UUID) -> MembersResponse:
+        members = await uow.teams.get_by_project(project_id)
+
+        members_info: list[Performer] = []
+        for member in members:
+            members_info.append(await cls._get_performer(uow, member.user_id))
+
+        return MembersResponse(members=members_info)
+
+    @staticmethod
+    async def _resolve_sprint_for_task(
+        uow: UnitOfWork,
+        project_id: UUID,
+        data: NewTaskRequest,
+    ) -> UUID:
+        if data.sprint_id:
+            sprint = await uow.sprints.get_by_id(data.sprint_id)
+            if not sprint:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Sprint not found in project",
+                )
+            if sprint.project_id != project_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Sprint doesn't belong to project",
+                )
+            return data.sprint_id
+
+        sprint = await uow.sprints.get_active_sprint_in_project(project_id)
+        if not sprint:
+            sprints = await uow.sprints.get_future_sprints_in_project(project_id)
+            if not sprints:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Sprints not exist",
+                )
+            sprint = sprints[0]
+
+        data.sprint_id = sprint.id
+        return sprint.id
+
+    @staticmethod
+    async def _notify_new_task(
+        uow: UnitOfWork,
+        project_id: UUID,
+        task_id: UUID,
+        data: NewTaskRequest,
+    ) -> None:
+        for performer in data.performes:
+            await uow.performes.add(task_id, performer.id)
+            await uow.notifications.create(
+                {
+                    "user_id": performer.id,
+                    "type": NotificationType.NewTask,
+                    "title": "You have a new task",
+                    "message": data.title,
+                    "project_id": project_id,
+                    "is_read": False,
+                }
+            )
+
     # ---------------- GET ---------------- #
 
     @classmethod
     async def get_kanban_info(cls, _user_sub: str, _user_role: Role) -> KanbanResponse:
         async with get_uow() as uow:
             try:
-                if _user_role == "user":
-                    user_id = UUID(_user_sub)
-                    project = await uow.projects.get_uncompleted_project_by_user_id(user_id)
-                    if not project:
-                        raise HTTPException(
-                            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
-                        )
+                project_id, project_name = await cls._resolve_project(uow, _user_sub, _user_role)
 
-                    project_response = Project(id=project.id, name=project.name)
+                current_sprint = await cls._resolve_current_sprint_in_project(uow, project_id)
+                tasks_response = await cls._build_tasks_for_sprint(
+                    uow, project_id, current_sprint.id
+                )
 
-                    sprints = await uow.sprints.get_by_project_id(project.id)
-                    current_sprints = []
-                    for sprint in sprints:
-                        if sprint.status == "active":
-                            current_sprints.append(
-                                SelectedSprint(
-                                    id=sprint.id,
-                                    seq=sprint.seq,
-                                )
-                            )
-                    if current_sprints:
-                        current_sprint = min(current_sprints, key=lambda s: s.seq)
-                        current_sprint_id = current_sprint.id
-                        current_sprint_seq = current_sprint.seq
-                    else:
-                        raise HTTPException(
-                            status_code=status.HTTP_404_NOT_FOUND, detail="Sprints not found"
-                        )
+                return KanbanResponse(
+                    project=Project(id=project_id, name=project_name),
+                    selected_sprint=SelectedSprint(id=current_sprint.id, seq=current_sprint.seq),
+                    tasks=tasks_response,
+                )
 
-                    sprint_response = SelectedSprint(id=current_sprint_id, seq=current_sprint_seq)
-
-                    tasks = await uow.tasks.get_by_sprint_id(current_sprint_id)
-
-                    if not tasks:
-                        raise HTTPException(
-                            status_code=status.HTTP_404_NOT_FOUND, detail="Tasks not found"
-                        )
-
-                    tasks_response: list[Task] = []
-                    for task in tasks:
-                        assignee_ids = await uow.performes.get_assignee_ids_by_task(task.id)
-                        performes: list[Performer] = []
-                        all_roles: list[TeamRole] = []
-                        for assignee_id in assignee_ids:
-                            user = await uow.users.get_by_id(assignee_id)
-                            if not user:
-                                raise HTTPException(
-                                    status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-                                )
-                            performes.append(
-                                Performer(
-                                    id=assignee_id,
-                                    first_name=user.first_name,
-                                    last_name=user.last_name,
-                                    avatar_url=user.avatar_url or "",
-                                )
-                            )
-                            roles = await uow.project_roles.get_roles_for_user_in_project(
-                                project.id, assignee_id
-                            )
-                            for role in roles:
-                                if role not in all_roles:
-                                    all_roles.append(role)
-
-                        task_info = Task(
-                            id=task.id,
-                            title=task.title,
-                            tags=all_roles,
-                            status=task.status,
-                            deadline=task.deadline,  # type: ignore
-                            priority=task.priority,
-                            performes=performes,
-                            key=task.key,
-                        )
-                        tasks_response.append(task_info)
-
-                    kanban_response = KanbanResponse(
-                        project=project_response,
-                        selected_sprint=sprint_response,
-                        tasks=tasks_response,
-                    )
-                    return kanban_response
-
-                elif _user_role == "admin":
-                    projects = await uow.projects.get_all_uncompleted_projects()
-                    if not projects:
-                        raise HTTPException(
-                            status_code=status.HTTP_404_NOT_FOUND, detail="Projects not found"
-                        )
-
-                    project = projects[0]  # пусть админу пока выводится рандомный проект
-                    project_response = Project(id=project.id, name=project.name)
-
-                    sprints = await uow.sprints.get_by_project_id(project.id)
-                    current_sprints = []
-                    for sprint in sprints:
-                        if sprint.status == "active":
-                            current_sprints.append(
-                                SelectedSprint(
-                                    id=sprint.id,
-                                    seq=sprint.seq,
-                                )
-                            )
-                    if current_sprints:
-                        current_sprint = min(current_sprints, key=lambda s: s.seq)
-                        current_sprint_id = current_sprint.id
-                        current_sprint_seq = current_sprint.seq
-                    else:
-                        raise HTTPException(
-                            status_code=status.HTTP_404_NOT_FOUND, detail="Sprints not found"
-                        )
-
-                    sprint_response = SelectedSprint(id=current_sprint_id, seq=current_sprint_seq)
-
-                    tasks = await uow.tasks.get_by_sprint_id(current_sprint_id)
-
-                    if not tasks:
-                        raise HTTPException(
-                            status_code=status.HTTP_404_NOT_FOUND, detail="Tasks not found"
-                        )
-
-                    tasks_response: list[Task] = []
-                    for task in tasks:
-                        assignee_ids = await uow.performes.get_assignee_ids_by_task(task.id)
-                        performes: list[Performer] = []
-                        all_roles: list[TeamRole] = []
-                        for assignee_id in assignee_ids:
-                            user = await uow.users.get_by_id(assignee_id)
-                            if not user:
-                                raise HTTPException(
-                                    status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-                                )
-                            performes.append(
-                                Performer(
-                                    id=assignee_id,
-                                    first_name=user.first_name,
-                                    last_name=user.last_name,
-                                    avatar_url=user.avatar_url or "",
-                                )
-                            )
-                            roles = await uow.project_roles.get_roles_for_user_in_project(
-                                project.id, assignee_id
-                            )
-                            for role in roles:
-                                if role not in all_roles:
-                                    all_roles.append(role)
-
-                        task_info = Task(
-                            id=task.id,
-                            title=task.title,
-                            tags=all_roles,
-                            status=task.status,
-                            deadline=task.deadline,  # type: ignore
-                            priority=task.priority,
-                            performes=performes,
-                            key=task.key,
-                        )
-                        tasks_response.append(task_info)
-
-                    kanban_response = KanbanResponse(
-                        project=project_response,
-                        selected_sprint=sprint_response,
-                        tasks=tasks_response,
-                    )
-                    return kanban_response
-
-                else:
-                    raise HTTPException(
-                        status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized user"
-                    )
-
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.error("Error during get info: %s", str(e))
                 raise HTTPException(
@@ -214,151 +224,24 @@ class KanbanService:
     ) -> KanbanResponse:
         async with get_uow() as uow:
             try:
-                if _user_role == "user":
-                    user_id = UUID(_user_sub)
-                    project = await uow.projects.get_uncompleted_project_by_user_id(user_id)
-                    if not project:
-                        raise HTTPException(
-                            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
-                        )
+                project_id, project_name = await cls._resolve_project(uow, _user_sub, _user_role)
 
-                    project_response = Project(id=project.id, name=project.name)
-
-                    sprint = await uow.sprints.get_by_id(sprint_id)
-                    if not sprint:
-                        raise HTTPException(
-                            status_code=status.HTTP_404_NOT_FOUND, detail="Sprint not found"
-                        )
-
-                    sprint_response = SelectedSprint(id=sprint_id, seq=sprint.seq)
-
-                    tasks = await uow.tasks.get_by_sprint_id(sprint_id)
-
-                    if not tasks:
-                        raise HTTPException(
-                            status_code=status.HTTP_404_NOT_FOUND, detail="Tasks not found"
-                        )
-
-                    tasks_response: list[Task] = []
-                    for task in tasks:
-                        assignee_ids = await uow.performes.get_assignee_ids_by_task(task.id)
-                        performes: list[Performer] = []
-                        all_roles: list[TeamRole] = []
-                        for assignee_id in assignee_ids:
-                            user = await uow.users.get_by_id(assignee_id)
-                            if not user:
-                                raise HTTPException(
-                                    status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-                                )
-                            performes.append(
-                                Performer(
-                                    id=assignee_id,
-                                    first_name=user.first_name,
-                                    last_name=user.last_name,
-                                    avatar_url=user.avatar_url or "",
-                                )
-                            )
-                            roles = await uow.project_roles.get_roles_for_user_in_project(
-                                project.id, assignee_id
-                            )
-                            for role in roles:
-                                if role not in all_roles:
-                                    all_roles.append(role)
-
-                        task_info = Task(
-                            id=task.id,
-                            title=task.title,
-                            tags=all_roles,
-                            status=task.status,
-                            deadline=task.deadline,  # type: ignore
-                            priority=task.priority,
-                            performes=performes,
-                            key=task.key,
-                        )
-                        tasks_response.append(task_info)
-
-                    kanban_response = KanbanResponse(
-                        project=project_response,
-                        selected_sprint=sprint_response,
-                        tasks=tasks_response,
-                    )
-                    return kanban_response
-
-                elif _user_role == "admin":
-                    projects = await uow.projects.get_all_uncompleted_projects()
-                    if not projects:
-                        raise HTTPException(
-                            status_code=status.HTTP_404_NOT_FOUND, detail="Projects not found"
-                        )
-
-                    project = projects[0]  # пусть админу пока выводится рандомный проект
-                    project_response = Project(id=project.id, name=project.name)
-
-                    sprint = await uow.sprints.get_by_id(sprint_id)
-                    if not sprint:
-                        raise HTTPException(
-                            status_code=status.HTTP_404_NOT_FOUND, detail="Sprint not found"
-                        )
-
-                    sprint_response = SelectedSprint(id=sprint_id, seq=sprint.seq)
-
-                    tasks = await uow.tasks.get_by_sprint_id(sprint_id)
-
-                    if not tasks:
-                        raise HTTPException(
-                            status_code=status.HTTP_404_NOT_FOUND, detail="Tasks not found"
-                        )
-
-                    tasks_response: list[Task] = []
-                    for task in tasks:
-                        assignee_ids = await uow.performes.get_assignee_ids_by_task(task.id)
-                        performes: list[Performer] = []
-                        all_roles: list[TeamRole] = []
-                        for assignee_id in assignee_ids:
-                            user = await uow.users.get_by_id(assignee_id)
-                            if not user:
-                                raise HTTPException(
-                                    status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-                                )
-                            performes.append(
-                                Performer(
-                                    id=assignee_id,
-                                    first_name=user.first_name,
-                                    last_name=user.last_name,
-                                    avatar_url=user.avatar_url or "",
-                                )
-                            )
-                            roles = await uow.project_roles.get_roles_for_user_in_project(
-                                project.id, assignee_id
-                            )
-                            for role in roles:
-                                if role not in all_roles:
-                                    all_roles.append(role)
-
-                        task_info = Task(
-                            id=task.id,
-                            title=task.title,
-                            tags=all_roles,
-                            status=task.status,
-                            deadline=task.deadline,  # type: ignore
-                            priority=task.priority,
-                            performes=performes,
-                            key=task.key,
-                        )
-                        tasks_response.append(task_info)
-
-                    kanban_response = KanbanResponse(
-                        project=project_response,
-                        selected_sprint=sprint_response,
-                        tasks=tasks_response,
-                    )
-                    return kanban_response
-
-                else:
+                sprint = await uow.sprints.get_by_id(sprint_id)
+                if not sprint:
                     raise HTTPException(
-                        status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized user"
+                        status_code=status.HTTP_404_NOT_FOUND, detail="Sprint not found"
                     )
 
+                tasks_response = await cls._build_tasks_for_sprint(uow, project_id, sprint_id)
+
+                return KanbanResponse(
+                    project=Project(id=project_id, name=project_name),
+                    selected_sprint=SelectedSprint(id=sprint_id, seq=sprint.seq),
+                    tasks=tasks_response,
+                )
+
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.error("Error during get info: %s", str(e))
                 raise HTTPException(
@@ -370,65 +253,11 @@ class KanbanService:
     async def get_all_team_members(cls, _user_sub: str, _user_role: Role) -> MembersResponse:
         async with get_uow() as uow:
             try:
-                if _user_role == "user":
-                    user_id = UUID(_user_sub)
-                    project = await uow.projects.get_uncompleted_project_by_user_id(user_id)
-                    if not project:
-                        raise HTTPException(
-                            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
-                        )
+                project_id, _project_name = await cls._resolve_project(uow, _user_sub, _user_role)
+                return await cls._build_members_for_project(uow, project_id)
 
-                    members = await uow.teams.get_by_project(project.id)
-
-                    members_info: list[Performer] = []
-                    for member in members:
-                        user = await uow.users.get_by_id(member.user_id)
-                        if not user:
-                            raise HTTPException(
-                                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-                            )
-                        info = Performer(
-                            id=member.user_id,
-                            first_name=user.first_name,
-                            last_name=user.last_name,
-                            avatar_url=user.avatar_url or "",
-                        )
-                        members_info.append(info)
-
-                    return MembersResponse(members=members_info)
-
-                elif _user_role == "admin":
-                    projects = await uow.projects.get_all_uncompleted_projects()
-                    if not projects:
-                        raise HTTPException(
-                            status_code=status.HTTP_404_NOT_FOUND, detail="Projects not found"
-                        )
-                    project = projects[0]  # пусть админу пока выводится рандомный проект
-
-                    members = await uow.teams.get_by_project(project.id)
-
-                    members_info: list[Performer] = []
-                    for member in members:
-                        user = await uow.users.get_by_id(member.user_id)
-                        if not user:
-                            raise HTTPException(
-                                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-                            )
-                        info = Performer(
-                            id=member.user_id,
-                            first_name=user.first_name,
-                            last_name=user.last_name,
-                            avatar_url=user.avatar_url or "",
-                        )
-                        members_info.append(info)
-
-                    return MembersResponse(members=members_info)
-
-                else:
-                    raise HTTPException(
-                        status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized user"
-                    )
-
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.error("Error during get info: %s", str(e))
                 raise HTTPException(
@@ -447,32 +276,22 @@ class KanbanService:
                     )
 
                 assignee_ids = await uow.performes.get_assignee_ids_by_task(task_id)
+
                 users_response: list[Performer] = []
                 for assignee_id in assignee_ids:
-                    user = await uow.users.get_by_id(assignee_id)
-                    if not user:
-                        raise HTTPException(
-                            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-                        )
-                    info = Performer(
-                        id=assignee_id,
-                        first_name=user.first_name,
-                        last_name=user.last_name,
-                        avatar_url=user.avatar_url or "",
-                    )
-                    users_response.append(info)
+                    users_response.append(await cls._get_performer(uow, assignee_id))
 
-                task_response = TaskResponse(
+                return TaskResponse(
                     id=task_id,
                     title=task.title,
                     description=task.description or "",
                     users=users_response,
                     priority=task.priority,
-                    deadline=task.deadline,  # type: ignore
+                    deadline=task.deadline,  # type: ignore[assignment]
                 )
 
-                return task_response
-
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.error("Error during get info: %s", str(e))
                 raise HTTPException(
@@ -481,6 +300,7 @@ class KanbanService:
                 ) from e
 
     # ---------------- CREATE ---------------- #
+
     @classmethod
     async def create_task(
         cls, data: NewTaskRequest, _user_sub: str, _user_role: Role
@@ -488,6 +308,8 @@ class KanbanService:
         async with get_uow() as uow:
             try:
                 return await cls._create_task_in_uow(uow, data, _user_sub, _user_role)
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.error("Error during task creation: %s", str(e))
                 raise HTTPException(
@@ -501,152 +323,32 @@ class KanbanService:
     ) -> BasicResponse:
         logger.info("create_task started")
 
-        if _user_role == "user":
-            user_id = UUID(_user_sub)
-            project = await uow.projects.get_uncompleted_project_by_user_id(user_id)
-            if not project:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
-                )
+        project_id, _project_name = await cls._resolve_project(uow, _user_sub, _user_role)
 
-            all_roles: list[TeamRole] = []
-            for performer in data.performes:
-                roles = await uow.project_roles.get_roles_for_user_in_project(
-                    project.id, performer.id
-                )
-                for role in roles:
-                    if role not in all_roles:
-                        all_roles.append(role)
+        performer_ids: list[UUID] = [p.id for p in data.performes]
+        all_roles = await cls._collect_unique_roles_for_users_in_project(
+            uow, project_id, performer_ids
+        )
 
-            if data.sprint_id:
-                sprint = await uow.sprints.get_by_id(data.sprint_id)
-                if not sprint:
-                    raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND, detail="Sprint not found in project"
-                    )
+        sprint_id = await cls._resolve_sprint_for_task(uow, project_id, data)
 
-                if sprint.project_id != project.id:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="Sprint doesn't belong to project",
-                    )
+        task = await uow.tasks.create(
+            {
+                "project_id": project_id,
+                "sprint_id": sprint_id,
+                "title": data.title,
+                "description": data.description,
+                "priority": data.priority,
+                "tag": all_roles,
+                "status": TaskStatus.ToDo,
+                "deadline": data.deadline,
+            }
+        )
 
-            else:
-                sprint = await uow.sprints.get_active_sprint_in_project(project.id)
-                if not sprint:
-                    sprints = await uow.sprints.get_future_sprints_in_project(project.id)
-                    if not sprints:
-                        raise HTTPException(
-                            status_code=status.HTTP_404_NOT_FOUND, detail="Sprints not exist"
-                        )
-                    sprint = sprints[0]
+        await cls._notify_new_task(uow, project_id, task.id, data)
 
-                data.sprint_id = sprint.id
-
-            task = await uow.tasks.create(
-                {
-                    "project_id": project.id,
-                    "sprint_id": data.sprint_id,
-                    "title": data.title,
-                    "description": data.description,
-                    "priority": data.priority,
-                    "tag": all_roles,
-                    "status": TaskStatus.ToDo,
-                    "deadline": data.deadline,
-                }
-            )
-
-            for performer in data.performes:
-                await uow.performes.add(task.id, performer.id)
-                await uow.notifications.create(
-                    {
-                        "user_id": performer.id,
-                        "type": NotificationType.NewTask,
-                        "title": "You have a new task",  # я хз конечно можно ли так делать
-                        "message": data.title,
-                        "project_id": project.id,
-                        "is_read": False,
-                    }
-                )
-
-            await uow.commit()
-            return BasicResponse(success=True, message="Task successfully created")
-
-        elif _user_role == "admin":
-            projects = await uow.projects.get_all_uncompleted_projects()
-            if not projects:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND, detail="Projects not found"
-                )
-            project = projects[0]
-
-            all_roles: list[TeamRole] = []
-            for performer in data.performes:
-                roles = await uow.project_roles.get_roles_for_user_in_project(
-                    project.id, performer.id
-                )
-                for role in roles:
-                    if role not in all_roles:
-                        all_roles.append(role)
-
-            if data.sprint_id:
-                sprint = await uow.sprints.get_by_id(data.sprint_id)
-                if not sprint:
-                    raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND, detail="Sprint not found in project"
-                    )
-
-                if sprint.project_id != project.id:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="Sprint doesn't belong to project",
-                    )
-
-            else:
-                sprint = await uow.sprints.get_active_sprint_in_project(project.id)
-                if not sprint:
-                    sprints = await uow.sprints.get_future_sprints_in_project(project.id)
-                    if not sprints:
-                        raise HTTPException(
-                            status_code=status.HTTP_404_NOT_FOUND, detail="Sprints not exist"
-                        )
-                    sprint = sprints[0]
-
-                data.sprint_id = sprint.id
-
-            task = await uow.tasks.create(
-                {
-                    "project_id": project.id,
-                    "sprint_id": data.sprint_id,
-                    "title": data.title,
-                    "description": data.description,
-                    "priority": data.priority,
-                    "tag": all_roles,
-                    "status": TaskStatus.ToDo,
-                    "deadline": data.deadline,
-                }
-            )
-
-            for performer in data.performes:
-                await uow.performes.add(task.id, performer.id)
-                await uow.notifications.create(
-                    {
-                        "user_id": performer.id,
-                        "type": NotificationType.NewTask,
-                        "title": "You have a new task",
-                        "message": data.title,
-                        "project_id": project.id,
-                        "is_read": False,
-                    }
-                )
-
-            await uow.commit()
-            return BasicResponse(success=True, message="Task successfully created")
-
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized user"
-            )
+        await uow.commit()
+        return BasicResponse(success=True, message="Task successfully created")
 
     # ---------------- POST ---------------- #
 
@@ -656,7 +358,6 @@ class KanbanService:
             try:
                 await uow.tasks.update(data.task_id, {"status": data.status})
                 await uow.commit()
-
                 return BasicResponse(success=True, message="Task status updated successfully")
 
             except Exception as e:
