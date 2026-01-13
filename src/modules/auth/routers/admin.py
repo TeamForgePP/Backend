@@ -3,7 +3,7 @@ from fastapi import APIRouter, Request, Response, status
 from src.modules.auth.schemas import AdminLoginRequest, AdminTokenPair
 from src.modules.auth.services import AdminAuthService
 
-router = APIRouter(prefix="/auth/admin", tags=["admin-auth"])
+router = APIRouter(prefix="/auth/admin", tags=["auth(admin)"])
 
 
 @router.post("/login", response_model=AdminTokenPair)

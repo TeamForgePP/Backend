@@ -18,6 +18,10 @@ class InvitationsRepo(BaseRepository):
         invitation = await self._session.get(Invitations, invitation_id)
         return cast(Invitations | None, invitation)
 
+    async def get_by_notification_id(self, notification_id: UUID) -> Invitations | None:
+        invitation = await self._session.get(Invitations, notification_id)
+        return cast(Invitations | None, invitation)
+
     async def get_all(self) -> list[Invitations]:
         result = await self._session.execute(select(Invitations))
         invitations = result.scalars().all()

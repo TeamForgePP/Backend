@@ -37,6 +37,18 @@ class TasksRepo(BaseRepository):
         tasks = result.scalars().all()
         return cast(list[Tasks], tasks)
 
+    async def get_by_sprint_id(self, sprint_id: UUID) -> list[Tasks]:
+        result = (
+            (
+                await self._session.execute(
+                    select(Tasks).where(Tasks.sprint_id == sprint_id).order_by(Tasks.seq)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        return cast(list[Tasks], result)
+
     async def create(self, data: dict[str, Any]) -> Tasks:
         task = Tasks(**data)
         self._session.add(task)
