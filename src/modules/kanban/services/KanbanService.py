@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import HTTPException, status
 
-from src.core.db import NotificationType, TaskStatus, TeamRole, UnitOfWork, get_uow
+from src.core.db import TaskStatus, UnitOfWork, get_uow
 from src.core.logger import get_logger
 from src.core.security.dependencies import Role
 from src.modules.kanban.schemas import (
@@ -11,195 +11,32 @@ from src.modules.kanban.schemas import (
     KanbanResponse,
     MembersResponse,
     NewTaskRequest,
-    Performer,
     Project,
     SelectedSprint,
-    Task,
     TaskResponse,
     UpdateStatusRequest,
 )
+from src.modules.kanban.utils import KanbanUtils
 
 logger = get_logger("home.service")
 logger.setLevel(logging.INFO)
 
 
 class KanbanService:
-    # ---------------- internal helpers ---------------- #
-
-    @staticmethod
-    async def _resolve_project(uow: UnitOfWork, user_sub: str, user_role: Role) -> tuple[UUID, str]:
-        if user_role == "user":
-            user_id = UUID(user_sub)
-            project = await uow.projects.get_uncompleted_project_by_user_id(user_id)
-            if not project:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
-                )
-            return project.id, project.name
-
-        if user_role == "admin":
-            projects = await uow.projects.get_all_uncompleted_projects()
-            if not projects:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND, detail="Projects not found"
-                )
-            project = projects[0]
-            return project.id, project.name
-
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized user")
-
-    @staticmethod
-    async def _resolve_current_sprint_in_project(
-        uow: UnitOfWork, project_id: UUID
-    ) -> SelectedSprint:
-        sprints = await uow.sprints.get_by_project_id(project_id)
-
-        current: list[SelectedSprint] = []
-        for sprint in sprints:
-            if sprint.status == "active":
-                current.append(SelectedSprint(id=sprint.id, seq=sprint.seq))
-
-        if not current:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sprints not found")
-
-        return min(current, key=lambda s: s.seq)
-
-    @staticmethod
-    async def _get_performer(uow: UnitOfWork, user_id: UUID) -> Performer:
-        user = await uow.users.get_by_id(user_id)
-        if not user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
-        return Performer(
-            id=user_id,
-            first_name=user.first_name,
-            last_name=user.last_name,
-            avatar_url=user.avatar_url or "",
-        )
-
-    @staticmethod
-    async def _collect_unique_roles_for_users_in_project(
-        uow: UnitOfWork,
-        project_id: UUID,
-        user_ids: list[UUID],
-    ) -> list[TeamRole]:
-        roles_unique: list[TeamRole] = []
-        for user_id in user_ids:
-            roles = await uow.project_roles.get_roles_for_user_in_project(project_id, user_id)
-            for role in roles:
-                if role not in roles_unique:
-                    roles_unique.append(role)
-        return roles_unique
-
-    @classmethod
-    async def _build_tasks_for_sprint(
-        cls, uow: UnitOfWork, project_id: UUID, sprint_id: UUID
-    ) -> list[Task]:
-        tasks = await uow.tasks.get_by_sprint_id(sprint_id)
-        if not tasks:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tasks not found")
-
-        tasks_response: list[Task] = []
-
-        for task in tasks:
-            assignee_ids = await uow.performes.get_assignee_ids_by_task(task.id)
-
-            performes: list[Performer] = []
-            for assignee_id in assignee_ids:
-                performes.append(await cls._get_performer(uow, assignee_id))
-
-            all_roles = await cls._collect_unique_roles_for_users_in_project(
-                uow, project_id, assignee_ids
-            )
-
-            tasks_response.append(
-                Task(
-                    id=task.id,
-                    title=task.title,
-                    tags=all_roles,
-                    status=task.status,
-                    deadline=task.deadline,  # type: ignore[assignment]
-                    priority=task.priority,
-                    performes=performes,
-                    key=task.key,
-                )
-            )
-
-        return tasks_response
-
-    @classmethod
-    async def _build_members_for_project(cls, uow: UnitOfWork, project_id: UUID) -> MembersResponse:
-        members = await uow.teams.get_by_project(project_id)
-
-        members_info: list[Performer] = []
-        for member in members:
-            members_info.append(await cls._get_performer(uow, member.user_id))
-
-        return MembersResponse(members=members_info)
-
-    @staticmethod
-    async def _resolve_sprint_for_task(
-        uow: UnitOfWork,
-        project_id: UUID,
-        data: NewTaskRequest,
-    ) -> UUID:
-        if data.sprint_id:
-            sprint = await uow.sprints.get_by_id(data.sprint_id)
-            if not sprint:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Sprint not found in project",
-                )
-            if sprint.project_id != project_id:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Sprint doesn't belong to project",
-                )
-            return data.sprint_id
-
-        sprint = await uow.sprints.get_active_sprint_in_project(project_id)
-        if not sprint:
-            sprints = await uow.sprints.get_future_sprints_in_project(project_id)
-            if not sprints:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Sprints not exist",
-                )
-            sprint = sprints[0]
-
-        data.sprint_id = sprint.id
-        return sprint.id
-
-    @staticmethod
-    async def _notify_new_task(
-        uow: UnitOfWork,
-        project_id: UUID,
-        task_id: UUID,
-        data: NewTaskRequest,
-    ) -> None:
-        for performer in data.performes:
-            await uow.performes.add(task_id, performer.id)
-            await uow.notifications.create(
-                {
-                    "user_id": performer.id,
-                    "type": NotificationType.NewTask,
-                    "title": "You have a new task",
-                    "message": data.title,
-                    "project_id": project_id,
-                    "is_read": False,
-                }
-            )
-
     # ---------------- GET ---------------- #
 
     @classmethod
     async def get_kanban_info(cls, _user_sub: str, _user_role: Role) -> KanbanResponse:
         async with get_uow() as uow:
             try:
-                project_id, project_name = await cls._resolve_project(uow, _user_sub, _user_role)
+                project_id, project_name = await KanbanUtils.resolve_project(
+                    uow, _user_sub, _user_role
+                )
 
-                current_sprint = await cls._resolve_current_sprint_in_project(uow, project_id)
-                tasks_response = await cls._build_tasks_for_sprint(
+                current_sprint = await KanbanUtils.resolve_current_sprint_in_project(
+                    uow, project_id
+                )
+                tasks_response = await KanbanUtils.build_tasks_for_sprint(
                     uow, project_id, current_sprint.id
                 )
 
@@ -224,7 +61,9 @@ class KanbanService:
     ) -> KanbanResponse:
         async with get_uow() as uow:
             try:
-                project_id, project_name = await cls._resolve_project(uow, _user_sub, _user_role)
+                project_id, project_name = await KanbanUtils.resolve_project(
+                    uow, _user_sub, _user_role
+                )
 
                 sprint = await uow.sprints.get_by_id(sprint_id)
                 if not sprint:
@@ -232,7 +71,9 @@ class KanbanService:
                         status_code=status.HTTP_404_NOT_FOUND, detail="Sprint not found"
                     )
 
-                tasks_response = await cls._build_tasks_for_sprint(uow, project_id, sprint_id)
+                tasks_response = await KanbanUtils.build_tasks_for_sprint(
+                    uow, project_id, sprint_id
+                )
 
                 return KanbanResponse(
                     project=Project(id=project_id, name=project_name),
@@ -253,8 +94,10 @@ class KanbanService:
     async def get_all_team_members(cls, _user_sub: str, _user_role: Role) -> MembersResponse:
         async with get_uow() as uow:
             try:
-                project_id, _project_name = await cls._resolve_project(uow, _user_sub, _user_role)
-                return await cls._build_members_for_project(uow, project_id)
+                project_id, _project_name = await KanbanUtils.resolve_project(
+                    uow, _user_sub, _user_role
+                )
+                return await KanbanUtils.build_members_for_project(uow, project_id)
 
             except HTTPException:
                 raise
@@ -277,9 +120,9 @@ class KanbanService:
 
                 assignee_ids = await uow.performes.get_assignee_ids_by_task(task_id)
 
-                users_response: list[Performer] = []
+                users_response = []
                 for assignee_id in assignee_ids:
-                    users_response.append(await cls._get_performer(uow, assignee_id))
+                    users_response.append(await KanbanUtils.get_performer(uow, assignee_id))
 
                 return TaskResponse(
                     id=task_id,
@@ -287,7 +130,7 @@ class KanbanService:
                     description=task.description or "",
                     users=users_response,
                     priority=task.priority,
-                    deadline=task.deadline,  # type: ignore[assignment]
+                    deadline=KanbanUtils.as_date(task.deadline),
                 )
 
             except HTTPException:
@@ -319,18 +162,22 @@ class KanbanService:
 
     @classmethod
     async def _create_task_in_uow(
-        cls, uow: UnitOfWork, data: NewTaskRequest, _user_sub: str, _user_role: Role
+        cls,
+        uow: UnitOfWork,
+        data: NewTaskRequest,
+        _user_sub: str,
+        _user_role: Role,
     ) -> BasicResponse:
         logger.info("create_task started")
 
-        project_id, _project_name = await cls._resolve_project(uow, _user_sub, _user_role)
+        project_id, _project_name = await KanbanUtils.resolve_project(uow, _user_sub, _user_role)
 
         performer_ids: list[UUID] = [p.id for p in data.performes]
-        all_roles = await cls._collect_unique_roles_for_users_in_project(
+        all_roles = await KanbanUtils.collect_unique_roles_for_users_in_project(
             uow, project_id, performer_ids
         )
 
-        sprint_id = await cls._resolve_sprint_for_task(uow, project_id, data)
+        sprint_id = await KanbanUtils.resolve_sprint_for_task(uow, project_id, data)
 
         task = await uow.tasks.create(
             {
@@ -345,7 +192,7 @@ class KanbanService:
             }
         )
 
-        await cls._notify_new_task(uow, project_id, task.id, data)
+        await KanbanUtils.notify_new_task(uow, project_id, task.id, data)
 
         await uow.commit()
         return BasicResponse(success=True, message="Task successfully created")

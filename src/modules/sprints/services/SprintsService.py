@@ -1,5 +1,4 @@
 import logging
-from typing import Any, Literal
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -10,91 +9,28 @@ from src.core.security.dependencies import Role
 from src.modules.sprints.schemas import (
     AllSprintsResponse,
     BasicResponse,
-    CurrentSprint,
-    FutureCompletedSprint,
     Sprint,
 )
+from src.modules.sprints.utils import SprintsUtils
 
 logger = get_logger("home.service")
 logger.setLevel(logging.INFO)
 
-ProjectPickMode = Literal["user", "admin"]
-SprintsBuckets = tuple[
-    CurrentSprint | None, list[FutureCompletedSprint], list[FutureCompletedSprint]
-]
-
 
 class SprintsService:
-    # ---------------- internal helpers ---------------- #
-
-    @staticmethod
-    async def _pick_uncompleted_project(uow: UnitOfWork, user_sub: str, user_role: Role) -> Any:
-        if user_role == "user":
-            user_id = UUID(user_sub)
-            project = await uow.projects.get_uncompleted_project_by_user_id(user_id)
-            if not project:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="You don't have uncompleted project",
-                )
-            return project
-
-        if user_role == "admin":
-            projects = await uow.projects.get_all_uncompleted_projects()
-            if not projects:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Projects not found",
-                )
-            return projects[0]
-
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized user")
-
-    @staticmethod
-    def _bucketize_sprints(sprints: list[Any]) -> SprintsBuckets:
-        current: CurrentSprint | None = None
-        future: list[FutureCompletedSprint] = []
-        completed: list[FutureCompletedSprint] = []
-
-        for sprint in sprints:
-            if sprint.status == SprintStatus.ACTIVE:
-                current = CurrentSprint(
-                    id=sprint.id,
-                    seq=sprint.seq,
-                    name=sprint.name,
-                    goal=sprint.goal or "",
-                    description=sprint.description or "",
-                    estimated_deadline=sprint.deadline,  # type: ignore[assignment]
-                )
-            elif sprint.status == SprintStatus.UPCOMING:
-                future.append(FutureCompletedSprint(id=sprint.id, seq=sprint.seq, name=sprint.name))
-            else:
-                completed.append(
-                    FutureCompletedSprint(id=sprint.id, seq=sprint.seq, name=sprint.name)
-                )
-
-        return current, future, completed
-
-    @staticmethod
-    def _sprint_update_payload(data: Sprint) -> dict[str, Any]:
-        return {
-            "name": data.name,
-            "start_date": data.start_date,
-            "end_date": data.end_date,
-            "goal": data.goal,
-            "description": data.description,
-        }
-
     # ---------------- GET ---------------- #
 
     @classmethod
     async def get_sprints_info(cls, _user_sub: str, _user_role: Role) -> AllSprintsResponse:
         async with get_uow() as uow:
             try:
-                project = await cls._pick_uncompleted_project(uow, _user_sub, _user_role)
+                project = await SprintsUtils.pick_uncompleted_project(uow, _user_sub, _user_role)
                 sprints = await uow.sprints.get_by_project_id(project.id)
 
-                current_sprint, future_sprints, completed_sprints = cls._bucketize_sprints(sprints)
+                current_sprint, future_sprints, completed_sprints = SprintsUtils.bucketize_sprints(
+                    sprints
+                )
+
                 return AllSprintsResponse(
                     current_sprint=current_sprint,
                     future_sprints=future_sprints,
@@ -123,8 +59,8 @@ class SprintsService:
 
                 return Sprint(
                     name=sprint.name,
-                    start_date=sprint.start,  # type: ignore[assignment]
-                    end_date=sprint.deadline,  # type: ignore[assignment]
+                    start_date=SprintsUtils.as_date(sprint.start),
+                    end_date=SprintsUtils.as_date(sprint.deadline),
                     goal=sprint.goal or "",
                     description=sprint.description or "",
                 )
@@ -144,7 +80,7 @@ class SprintsService:
     async def edit_sprint(cls, sprint_id: UUID, data: Sprint) -> BasicResponse:
         async with get_uow() as uow:
             try:
-                await uow.sprints.update(sprint_id, cls._sprint_update_payload(data))
+                await uow.sprints.update(sprint_id, SprintsUtils.sprint_update_payload(data))
                 await uow.commit()
                 return BasicResponse(success=True, message="Sprint successfully edited")
 
@@ -220,7 +156,7 @@ class SprintsService:
     ) -> BasicResponse:
         logger.info("create_sprint started")
 
-        project = await cls._pick_uncompleted_project(uow, _user_sub, _user_role)
+        project = await SprintsUtils.pick_uncompleted_project(uow, _user_sub, _user_role)
 
         await uow.sprints.create(
             {
