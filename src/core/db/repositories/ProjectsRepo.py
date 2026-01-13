@@ -41,6 +41,13 @@ class ProjectsRepo(BaseRepository):
         projects = result.scalars().all()
         return cast(list[Projects], projects)
 
+    async def get_all_uncompleted_projects(self) -> list[Projects]:
+        result = await self._session.execute(
+            select(Projects).where(Projects.is_completed.is_(False))
+        )
+        projects = result.scalars().all()
+        return cast(list[Projects], projects)
+
     async def create(self, data: dict[str, Any]) -> Projects:
         project = Projects(**data)
         self._session.add(project)

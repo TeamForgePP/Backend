@@ -22,7 +22,7 @@ class UserCreate(UserBase):
     password: str = Field(..., min_length=6, max_length=128)
 
 
-class UserUpdate(BaseModel):
+class UserProfileUpdate(BaseModel):
     last_name: str | None = Field(default=None, max_length=35)
     first_name: str | None = Field(default=None, max_length=20)
     patronymic: str | None = Field(default=None, max_length=35)
@@ -31,7 +31,11 @@ class UserUpdate(BaseModel):
     avatar_url: str | None = None
     group_id: UUID | None = None
     in_team: bool | None = None
-    password: str | None = Field(default=None, min_length=6, max_length=128)
+
+
+class UserPasswordUpdate(BaseModel):
+    email: EmailStr | None = None
+    password: str = Field(default=..., min_length=6, max_length=128)
 
 
 class UserRead(UserBase):

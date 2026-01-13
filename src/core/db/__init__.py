@@ -4,6 +4,7 @@ from .enums import (
     InvitationStatus,
     LevelEducation,
     NotificationType,
+    ReportStatus,
     SprintStatus,
     TaskPriority,
     TaskStatus,
@@ -26,6 +27,7 @@ __all__ = [
     "UserRole",
     "UserStatus",
     "SprintStatus",
+    "ReportStatus",
     # __остальные импорты__
     "get_uow",
     "UnitOfWork",

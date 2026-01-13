@@ -72,3 +72,9 @@ class SprintStatus(str, Enum):
     UPCOMING = "upcoming"
     ACTIVE = "active"
     COMPLETED = "completed"
+
+
+class ReportStatus(str, Enum):
+    UPLOADING = "uploading"
+    READY = "ready"
+    FAILED = "failed"

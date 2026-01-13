@@ -105,7 +105,7 @@ class UserAuthService:
     def refresh(cls, request: Request, response: Response) -> UserTokenPair:
         client_ip = request.client.host if request.client else "unknown"
 
-        refresh_cookie_name = cfg.user.cookies.refresh
+        refresh_cookie_name = cfg.user_cookies.refresh
         refresh_token = request.cookies.get(refresh_cookie_name)
 
         if not refresh_token:
