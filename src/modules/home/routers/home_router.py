@@ -2,12 +2,12 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
 
-from src.core.security.dependencies import AccessContext, require_admin
+from src.core.security.dependencies import PrincipalContext, require_user_or_admin
 from src.modules.home.schemas import BasicResponse, CreateProjectRequest, ProjectsResponse
 from src.modules.home.services import HomeService
 
 router = APIRouter(prefix="/user/home", tags=["home"])
-admin_dep = Depends(require_admin)
+user_dep = Depends(require_user_or_admin)
 
 
 @router.post(
@@ -17,9 +17,9 @@ admin_dep = Depends(require_admin)
     name="create_project",
 )
 async def create_project(
-    data: CreateProjectRequest, _admin: AccessContext = admin_dep
+    data: CreateProjectRequest, _user: PrincipalContext = user_dep
 ) -> BasicResponse:
-    return await HomeService.create_project(data, UUID(_admin.sub))
+    return await HomeService.create_project(data, _user.sub, _user.role)
 
 
 @router.get(
@@ -28,8 +28,8 @@ async def create_project(
     status_code=status.HTTP_200_OK,
     name="get_home_info",
 )
-async def get_home_info(_admin: AccessContext = admin_dep) -> ProjectsResponse:
-    return await HomeService.get_home_info(UUID(_admin.sub), access=admin_dep)
+async def get_home_info(_user: PrincipalContext = user_dep) -> ProjectsResponse:
+    return await HomeService.get_home_info(_user.sub, _user.role)
 
 
 @router.post(
@@ -38,8 +38,8 @@ async def get_home_info(_admin: AccessContext = admin_dep) -> ProjectsResponse:
     status_code=status.HTTP_200_OK,
     name="leave_project",
 )
-async def leave_project(project_id: UUID, _admin: AccessContext = admin_dep) -> BasicResponse:
-    return await HomeService.leave_project(UUID(_admin.sub), project_id)
+async def leave_project(project_id: UUID, _user: PrincipalContext = user_dep) -> BasicResponse:
+    return await HomeService.leave_project(UUID(_user.sub), project_id)
 
 
 @router.delete(
@@ -48,5 +48,5 @@ async def leave_project(project_id: UUID, _admin: AccessContext = admin_dep) -> 
     status_code=status.HTTP_200_OK,
     name="delete_project",
 )
-async def delete_project(project_id: UUID, _admin: AccessContext = admin_dep) -> BasicResponse:
-    return await HomeService.delete_project(UUID(_admin.sub), project_id, access=admin_dep)
+async def delete_project(project_id: UUID, _user: PrincipalContext = user_dep) -> BasicResponse:
+    return await HomeService.delete_project(_user.sub, _user.role, project_id)
