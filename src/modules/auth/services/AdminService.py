@@ -45,7 +45,6 @@ class AdminAuthService:
                 detail="too many login attempts, try again later",
             )
 
-        # неверные креды
         if data.username != cfg.admin.login or data.password != cfg.admin.password:
             attempts = await attempts_service.increment(identifier, ip=client_ip)
             logger.warning(

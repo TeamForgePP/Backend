@@ -1,15 +1,15 @@
-from .GroupsRepo import GroupsRepo
-from .InvitationsRepo import InvitationsRepo
-from .NotificationsRepo import NotificationsRepo
-from .PerformesRepo import PerformesRepo
-from .ProjectReportRepo import ProjectReportsRepo
-from .ProjectRoleRepo import ProjectRoleRepo
-from .ProjectsRepo import ProjectsRepo
-from .ReportsRepo import ReportsRepo
-from .SprintsRepo import SprintsRepo
-from .TasksRepo import TasksRepo
-from .TeamsRepo import TeamsRepo
-from .UsersRepo import UsersRepo
+from src.core.db.repositories.GroupsRepo import GroupsRepo
+from src.core.db.repositories.InvitationsRepo import InvitationsRepo
+from src.core.db.repositories.NotificationsRepo import NotificationsRepo
+from src.core.db.repositories.PerformesRepo import PerformesRepo
+from src.core.db.repositories.ProjectReportRepo import ProjectReportsRepo
+from src.core.db.repositories.ProjectRoleRepo import ProjectRoleRepo
+from src.core.db.repositories.ProjectsRepo import ProjectsRepo
+from src.core.db.repositories.ReportsRepo import ReportsRepo
+from src.core.db.repositories.SprintsRepo import SprintsRepo
+from src.core.db.repositories.TasksRepo import TasksRepo
+from src.core.db.repositories.TeamsRepo import TeamsRepo
+from src.core.db.repositories.UsersRepo import UsersRepo
 
 __all__ = [
     "GroupsRepo",
