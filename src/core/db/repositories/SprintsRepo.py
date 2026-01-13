@@ -4,6 +4,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.db import SprintStatus
 from src.core.db.interfaces import BaseRepository
 from src.core.db.models.sprints import Sprints
 
@@ -17,12 +18,34 @@ class SprintsRepo(BaseRepository):
         sprint = await self._session.get(Sprints, sprint_id)
         return cast(Sprints | None, sprint)
 
-    async def get_by_project_id(self, project_id: UUID) -> list[Sprints]:
+    async def get_by_project_id(
+        self, project_id: UUID, status: SprintStatus | None = None
+    ) -> list[Sprints]:
+        result = select(Sprints).where(Sprints.project_id == project_id).order_by(Sprints.seq)
+
+        if status is not None:
+            result = result.where(Sprints.status == status)
+
+        sprints = (await self._session.execute(result)).scalars().all()
+        return cast(list[Sprints], sprints)
+
+    async def get_future_sprints_in_project(self, project_id: UUID) -> list[Sprints]:
         result = await self._session.execute(
-            select(Sprints).where(Sprints.project_id == project_id).order_by(Sprints.seq)
+            select(Sprints)
+            .where(Sprints.project_id == project_id, Sprints.status.is_(SprintStatus.UPCOMING))
+            .order_by(Sprints.seq)
         )
         sprints = result.scalars().all()
         return cast(list[Sprints], sprints)
+
+    async def get_active_sprint_in_project(self, project_id: UUID) -> Sprints | None:
+        result = await self._session.execute(
+            select(Sprints).where(
+                Sprints.project_id == project_id, Sprints.status.is_(SprintStatus.ACTIVE)
+            )
+        )
+        sprint = result.scalar_one_or_none()
+        return cast(Sprints | None, sprint)
 
     async def get_all(self) -> list[Sprints]:
         result = await self._session.execute(select(Sprints))
