@@ -45,7 +45,6 @@ class UserTokenService:
         return self._provider.decode(token)
 
     def is_user_access(self, payload: dict[str, Any]) -> bool:
-        # sub у нас динамический (id юзера), поэтому проверяем только тип и роль
         return payload.get("typ") == "access" and payload.get("role") == "user"
 
     def is_user_refresh(self, payload: dict[str, Any]) -> bool:

@@ -3,7 +3,7 @@ from fastapi import APIRouter, Request, Response, status
 from src.modules.auth.schemas.user import UserLoginRequest, UserTokenPair
 from src.modules.auth.services.UserService import UserAuthService
 
-router = APIRouter(prefix="/auth/user", tags=["auth(user)"])
+router = APIRouter(prefix="/auth/user", tags=["user-auth"])
 
 
 @router.post("/login", response_model=UserTokenPair, status_code=status.HTTP_200_OK)
