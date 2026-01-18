@@ -4,6 +4,7 @@ from uuid import UUID
 
 from aiobotocore.session import get_session  # type: ignore[import-untyped]
 from botocore.config import Config  # type: ignore[import-untyped]
+from botocore.exceptions import ClientError  # type: ignore[import-untyped]
 
 from src.config import cfg
 
@@ -134,6 +135,30 @@ class MinioPublic:
             "etag": etag,
             "view_url": self.view_url(key),
         }
+
+    # Юра, мне это нужно по модулю проект, пока не могу писать в тг на момент пуша этого файла.
+    async def head_object(self, *, key: str) -> dict[str, Any]:
+        async with await self._client() as s3:
+            try:
+                head = await s3.head_object(Bucket=self.bucket, Key=key)
+            except ClientError as exc:
+                raise ValueError("OBJECT_NOT_FOUND") from exc
+
+        size = int(head.get("ContentLength", 0))
+        content_type = (head.get("ContentType") or "").split(";", 1)[0].lower()
+        etag = (head.get("ETag") or "").strip('"')
+
+        return {
+            "key": key,
+            "size_bytes": size,
+            "content_type": content_type,
+            "etag": etag,
+            "view_url": self.view_url(key),
+        }
+
+    async def remove_object(self, *, key: str) -> None:
+        async with await self._client() as s3:
+            await s3.delete_object(Bucket=self.bucket, Key=key)
 
 
 minio_public = MinioPublic(bucket=cfg.minio.minio_bucket or "public")
