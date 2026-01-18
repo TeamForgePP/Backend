@@ -430,6 +430,7 @@ class ProjectService:
                     ),
                 )
 
+            assert uploaded is not None
             uploaded_view_url = uploaded["view_url"]
             await uow.reports.update(
                 report_id,
