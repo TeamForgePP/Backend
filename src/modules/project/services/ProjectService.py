@@ -1,3 +1,5 @@
+from datetime import datetime
+from typing import TypedDict, cast
 from uuid import UUID, uuid4
 
 from fastapi import HTTPException, status
@@ -6,7 +8,7 @@ from sqlalchemy.orm import aliased
 
 from src.core.db.enums import ReportStatus, TeamRole
 from src.core.db.models import ProjectReports, ProjectRole, Projects, Reports, Teams, Users
-from src.core.db.UnitOfWork import get_uow
+from src.core.db.UnitOfWork import UnitOfWork, get_uow
 from src.core.logger import get_logger
 from src.core.s3.minio import ALLOWED_MIME, minio_public
 from src.core.security.dependencies import PrincipalContext
@@ -35,6 +37,14 @@ logger = get_logger("modules.project")
 MAX_REPORT_SIZE_BYTES = 50 * 1024 * 1024  # 50 MB
 
 
+class UploadedObjectHead(TypedDict):
+    key: str
+    size_bytes: int
+    content_type: str
+    etag: str
+    view_url: str
+
+
 class ProjectService:
     @staticmethod
     def _normalize_content_type(value: str | None) -> str:
@@ -54,7 +64,7 @@ class ProjectService:
 
     @staticmethod
     async def _ensure_project_access(
-        uow,
+        uow: UnitOfWork,
         *,
         principal: PrincipalContext,
         project: Projects,
@@ -83,7 +93,11 @@ class ProjectService:
         return user_id
 
     @staticmethod
-    async def _roles_map_for_project(uow, *, project_id: UUID) -> dict[UUID, list[TeamRole]]:
+    async def _roles_map_for_project(
+        uow: UnitOfWork,
+        *,
+        project_id: UUID,
+    ) -> dict[UUID, list[TeamRole]]:
         stmt = select(ProjectRole.user_id, ProjectRole.role).where(
             ProjectRole.project_id == project_id
         )
@@ -121,9 +135,9 @@ class ProjectService:
         return AllowedActions(can_edit=can_edit, can_finish=can_finish, reports=reports)
 
     @staticmethod
-    async def _project_id_by_report_id(uow, *, report_id: UUID) -> UUID:
+    async def _project_id_by_report_id(uow: UnitOfWork, *, report_id: UUID) -> UUID:
         stmt = select(ProjectReports.project_id).where(ProjectReports.report_id == report_id)
-        project_id = (await uow.session.execute(stmt)).scalar_one_or_none()
+        project_id = cast(UUID | None, (await uow.session.execute(stmt)).scalar_one_or_none())
         if project_id is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="report not found")
         return project_id
@@ -203,7 +217,7 @@ class ProjectService:
                         editor_id=editor_user.id,
                         editor_fn=editor_user.first_name,
                         editor_ln=editor_user.last_name,
-                        updated_at=report.updated_at,
+                        updated_at=cast(datetime | None, report.updated_at),
                     )
 
                 reports.append(
@@ -367,18 +381,21 @@ class ProjectService:
 
             await cls._ensure_project_access(uow, principal=principal, project=project)
 
+            uploaded: UploadedObjectHead | None
             try:
-                uploaded = await minio_public.head_object(key=file_key)
+                uploaded = cast(UploadedObjectHead, await minio_public.head_object(key=file_key))
             except ValueError:
                 uploaded = None
 
             expected_type = cls._normalize_content_type(report.content_type)
             expected_size = int(report.size_bytes or 0)
 
-            actual_type = cls._normalize_content_type(
-                uploaded.get("content_type") if uploaded else None
-            )
-            actual_size = int(uploaded.get("size_bytes") if uploaded else 0)
+            if uploaded is None:
+                actual_type = ""
+                actual_size = 0
+            else:
+                actual_type = cls._normalize_content_type(uploaded["content_type"])
+                actual_size = int(uploaded["size_bytes"])
 
             ok = (
                 uploaded is not None
@@ -413,11 +430,12 @@ class ProjectService:
                     ),
                 )
 
+            uploaded_view_url = uploaded["view_url"]
             await uow.reports.update(
                 report_id,
                 {
                     "status": ReportStatus.READY,
-                    "file_url": uploaded["view_url"],
+                    "file_url": uploaded_view_url,
                     "content_type": actual_type,
                     "size_bytes": actual_size,
                 },
@@ -431,7 +449,7 @@ class ProjectService:
                     id=report_id,
                     file_key=file_key,
                     status=ReportStatus.READY,
-                    view_url=uploaded["view_url"],
+                    view_url=uploaded_view_url,
                     content_type=actual_type,
                     size_bytes=actual_size,
                     upload=None,
@@ -552,7 +570,7 @@ class ProjectService:
                     editor_id=editor_user.id,
                     editor_fn=editor_user.first_name,
                     editor_ln=editor_user.last_name,
-                    updated_at=updated.updated_at,
+                    updated_at=cast(datetime | None, updated.updated_at),
                 )
 
             await uow.commit()
