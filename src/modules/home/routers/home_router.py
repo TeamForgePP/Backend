@@ -3,7 +3,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, status
 
 from src.core.security.dependencies import PrincipalContext, require_user_or_admin
-from src.modules.home.schemas import BasicResponse, CreateProjectRequest, ProjectsResponse
+from src.modules.home.schemas import (
+    BasicResponse,
+    CreateProjectRequest,
+    ProjectsResponse,
+    UsersResponse,
+)
 from src.modules.home.services import HomeService
 
 router = APIRouter(prefix="/user/home", tags=["home"])
@@ -30,6 +35,16 @@ async def create_project(
 )
 async def get_home_info(_user: PrincipalContext = user_dep) -> ProjectsResponse:
     return await HomeService.get_home_info(_user.sub, _user.role)
+
+
+@router.get(
+    "/users-for-team",
+    response_model=UsersResponse,
+    status_code=status.HTTP_200_OK,
+    name="get_users_for_team",
+)
+async def get_users_for_team(_user: PrincipalContext = user_dep) -> UsersResponse:
+    return await HomeService.get_users_for_team(_user.sub, _user.role)
 
 
 @router.post(
