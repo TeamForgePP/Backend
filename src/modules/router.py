@@ -7,6 +7,7 @@ from src.modules.home.routers.home_router import router as home_router
 from src.modules.kanban.routers.kanban_router import router as kanban_router
 from src.modules.notifications.routers.invitation_router import router as invitation_router
 from src.modules.notifications.routers.notifications_router import router as notifications_router
+from src.modules.project.routers.project_router import router as project_router
 from src.modules.sprints.routers.sprints_router import router as sprints_router
 
 router = APIRouter(prefix="/api")
@@ -19,3 +20,4 @@ router.include_router(sprints_router)
 router.include_router(kanban_router)
 router.include_router(notifications_router)
 router.include_router(invitation_router)
+router.include_router(project_router)
