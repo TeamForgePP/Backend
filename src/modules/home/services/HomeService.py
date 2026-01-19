@@ -1,5 +1,5 @@
 import logging
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -24,66 +24,10 @@ from src.modules.home.schemas import (
     User,
     UsersResponse,
 )
+from src.modules.home.utils.home import HomeUtils
 
 logger = get_logger("home.service")
 logger.setLevel(logging.INFO)
-
-
-def _parse_uuid(value: str, *, detail: str) -> UUID:
-    try:
-        return UUID(value)
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=detail) from e
-
-
-def _as_team_role(role: object) -> TeamRole:
-    if isinstance(role, TeamRole):
-        return role
-    if isinstance(role, str):
-        try:
-            return TeamRole(role)
-        except Exception:
-            try:
-                return TeamRole[role]
-            except Exception as e:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                    detail="Invalid team role format",
-                ) from e
-    raise HTTPException(
-        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-        detail="Invalid team role format",
-    )
-
-
-def _is_active_sprint(status_value: object) -> bool:
-    if status_value is None:
-        return False
-    if isinstance(status_value, str):
-        return status_value.strip().lower() == "active"
-    v = getattr(status_value, "value", None)
-    if isinstance(v, str) and v.strip().lower() == "active":
-        return True
-    n = getattr(status_value, "name", None)
-    if isinstance(n, str) and n.strip().lower() == "active":
-        return True
-    return False
-
-
-def _safe_deadline_list(values: list[object]) -> list[datetime]:
-    out: list[datetime] = []
-    for v in values:
-        if isinstance(v, datetime):
-            out.append(v)
-    return out
-
-
-def _as_date(value: object) -> date:
-    if isinstance(value, date) and not isinstance(value, datetime):
-        return value
-    if isinstance(value, datetime):
-        return value.date()
-    return date.min
 
 
 class HomeService:
@@ -110,7 +54,7 @@ class HomeService:
         logger.info("create_project started | name=%s", getattr(data, "name", None))
 
         if _user_role == "user":
-            user_id = _parse_uuid(_user_sub, detail="Invalid token subject")
+            user_id = HomeUtils.parse_uuid(_user_sub, detail="Invalid token subject")
 
             project = await uow.projects.create(
                 {
@@ -149,7 +93,7 @@ class HomeService:
                 member_roles = getattr(team_member, "roles", None)
                 if member_roles:
                     for role in member_roles:
-                        role_enum = _as_team_role(role)
+                        role_enum = HomeUtils.as_team_role(role)
                         if role_enum == TeamRole.TeamLead:
                             raise HTTPException(
                                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -205,7 +149,7 @@ class HomeService:
                     )
 
                 member_roles = getattr(team_member, "roles", None) or []
-                normalized_roles = [_as_team_role(r) for r in member_roles]
+                normalized_roles = [HomeUtils.as_team_role(r) for r in member_roles]
                 if TeamRole.TeamLead in normalized_roles:
                     team_leads.append(member_id)
 
@@ -243,7 +187,7 @@ class HomeService:
                 member_roles = getattr(team_member, "roles", None)
                 if member_roles:
                     for role in member_roles:
-                        role_enum = _as_team_role(role)
+                        role_enum = HomeUtils.as_team_role(role)
                         if role_enum == TeamRole.TeamLead and member_id != team_lead:
                             raise HTTPException(
                                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -296,52 +240,67 @@ class HomeService:
                 logger.info("get_users_for_team started")
 
                 if _user_role == "user":
-                    user_id = UUID(_user_sub)
+                    user_id = HomeUtils.parse_uuid(_user_sub, detail="Invalid token subject")
+
                     user = await uow.users.get_by_id(user_id)
                     if not user:
-                        raise HTTPException(
-                            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-                        )
-                    if not user.group_id:
-                        raise HTTPException(
-                            status_code=status.HTTP_400_BAD_REQUEST,
-                            detail="User doesn't belong to any group",
-                        )
+                        return UsersResponse(users=[])
 
-                    users = await uow.users.get_by_group(user.group_id)
+                    group_id = getattr(user, "group_id", None)
+                    if not isinstance(group_id, UUID):
+                        return UsersResponse(users=[])
+
+                    users = await uow.users.get_by_group(group_id)
                     if not users:
-                        raise HTTPException(
-                            status_code=status.HTTP_404_NOT_FOUND, detail="Users not found"
-                        )
-                    users_response_for_admin: list[User] = []
+                        return UsersResponse(users=[])
 
-                    for u in users:
-                        info = User(
-                            id=u.id, name=u.first_name, last_name=u.last_name, in_team=u.in_team
-                        )
-                        users_response_for_admin.append(info)
-                    return UsersResponse(users=users_response_for_admin)
-
-                elif _user_role == "admin":
-                    users = await uow.users.get_all()
                     users_response: list[User] = []
 
                     for u in users:
-                        info = User(
-                            id=u.id, name=u.first_name, last_name=u.last_name, in_team=u.in_team
+                        uid = getattr(u, "id", None)
+                        if not isinstance(uid, UUID):
+                            continue
+
+                        first_name = HomeUtils.as_str(getattr(u, "first_name", ""))
+                        last_name = HomeUtils.as_str(getattr(u, "last_name", ""))
+                        in_team = HomeUtils.as_bool(getattr(u, "in_team", False))
+
+                        users_response.append(
+                            User(id=uid, name=first_name, last_name=last_name, in_team=in_team)
                         )
-                        users_response.append(info)
+
                     return UsersResponse(users=users_response)
 
-                else:
-                    raise HTTPException(
-                        status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized user"
-                    )
+                if _user_role == "admin":
+                    users = await uow.users.get_all()
+                    if not users:
+                        return UsersResponse(users=[])
+
+                    users_response_admin: list[User] = []
+
+                    for u in users:
+                        uid = getattr(u, "id", None)
+                        if not isinstance(uid, UUID):
+                            continue
+
+                        first_name = HomeUtils.as_str(getattr(u, "first_name", ""))
+                        last_name = HomeUtils.as_str(getattr(u, "last_name", ""))
+                        in_team = HomeUtils.as_bool(getattr(u, "in_team", False))
+
+                        users_response_admin.append(
+                            User(id=uid, name=first_name, last_name=last_name, in_team=in_team)
+                        )
+
+                    return UsersResponse(users=users_response_admin)
+
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized user"
+                )
 
             except HTTPException:
                 raise
             except Exception as e:
-                logger.error("Error during get users: %s", str(e))
+                logger.exception("Error during get users")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Internal Server Error during get users",
@@ -352,7 +311,7 @@ class HomeService:
         async with get_uow() as uow:
             try:
                 if _user_role == "user":
-                    user_id = _parse_uuid(_user_sub, detail="Invalid token subject")
+                    user_id = HomeUtils.parse_uuid(_user_sub, detail="Invalid token subject")
 
                     projects_raw = await uow.projects.get_projects_id_by_user_id(user_id)
                     if not projects_raw:
@@ -393,12 +352,7 @@ class HomeService:
                             if not isinstance(sprint_id, UUID):
                                 continue
 
-                            sprint_name_raw = getattr(sprint, "name", "")
-                            sprint_name = (
-                                sprint_name_raw
-                                if isinstance(sprint_name_raw, str)
-                                else str(sprint_name_raw)
-                            )
+                            sprint_name = HomeUtils.as_str(getattr(sprint, "name", ""))
 
                             sprint_seq_raw = getattr(sprint, "seq", 0)
                             if isinstance(sprint_seq_raw, int):
@@ -409,8 +363,8 @@ class HomeService:
                                 except Exception:
                                     sprint_seq = 0
 
-                            sprint_deadline = _as_date(getattr(sprint, "deadline", None))
-                            is_active = _is_active_sprint(getattr(sprint, "status", None))
+                            sprint_deadline = HomeUtils.as_date(getattr(sprint, "deadline", None))
+                            is_active = HomeUtils.is_active_sprint(getattr(sprint, "status", None))
 
                             if is_active:
                                 m = SprintMap(
@@ -454,7 +408,7 @@ class HomeService:
                             if user_id in assignees:
                                 deadlines_raw_user.append(getattr(task, "deadline", None))
 
-                        deadlines_user = _safe_deadline_list(deadlines_raw_user)
+                        deadlines_user = HomeUtils.safe_deadline_list(deadlines_raw_user)
                         nearest_deadline_user = min(deadlines_user) if deadlines_user else None
 
                         allowed_actions = AllowedActions(
@@ -462,17 +416,12 @@ class HomeService:
                             can_leave=True,
                         )
 
-                        project_name_raw = getattr(project, "name", "")
-                        project_name = (
-                            project_name_raw
-                            if isinstance(project_name_raw, str)
-                            else str(project_name_raw)
-                        )
+                        project_name = HomeUtils.as_str(getattr(project, "name", ""))
 
                         project_info = Project(
                             id=project_id,
                             name=project_name,
-                            is_completed=bool(getattr(project, "is_completed", False)),
+                            is_completed=HomeUtils.as_bool(getattr(project, "is_completed", False)),
                             current_sprint_name=current_sprint_name,
                             current_sprint_seq=int(current_sprint_seq),
                             role=roles,
@@ -508,12 +457,7 @@ class HomeService:
                             if not isinstance(sprint_id_admin, UUID):
                                 continue
 
-                            sprint_name_raw_admin = getattr(sprint_admin, "name", "")
-                            sprint_name_admin = (
-                                sprint_name_raw_admin
-                                if isinstance(sprint_name_raw_admin, str)
-                                else str(sprint_name_raw_admin)
-                            )
+                            sprint_name_admin = HomeUtils.as_str(getattr(sprint_admin, "name", ""))
 
                             sprint_seq_raw_admin = getattr(sprint_admin, "seq", 0)
                             if isinstance(sprint_seq_raw_admin, int):
@@ -524,10 +468,10 @@ class HomeService:
                                 except Exception:
                                     sprint_seq_admin = 0
 
-                            sprint_deadline_admin = _as_date(
+                            sprint_deadline_admin = HomeUtils.as_date(
                                 getattr(sprint_admin, "deadline", None)
                             )
-                            is_active_admin = _is_active_sprint(
+                            is_active_admin = HomeUtils.is_active_sprint(
                                 getattr(sprint_admin, "status", None)
                             )
 
@@ -566,7 +510,7 @@ class HomeService:
                         for task_admin in tasks_admin:
                             deadlines_raw_admin.append(getattr(task_admin, "deadline", None))
 
-                        deadlines_admin = _safe_deadline_list(deadlines_raw_admin)
+                        deadlines_admin = HomeUtils.safe_deadline_list(deadlines_raw_admin)
                         nearest_deadline_admin = min(deadlines_admin) if deadlines_admin else None
 
                         allowed_actions_admin = AllowedActions(
@@ -574,12 +518,7 @@ class HomeService:
                             can_leave=False,
                         )
 
-                        project_name_raw_admin = getattr(project_admin, "name", "")
-                        project_name_admin = (
-                            project_name_raw_admin
-                            if isinstance(project_name_raw_admin, str)
-                            else str(project_name_raw_admin)
-                        )
+                        project_name_admin = HomeUtils.as_str(getattr(project_admin, "name", ""))
 
                         project_info_admin = Project(
                             id=project_id_admin,
@@ -663,7 +602,7 @@ class HomeService:
                 )
 
             if _user_role == "user":
-                user_id = _parse_uuid(_user_sub, detail="Invalid token subject")
+                user_id = HomeUtils.parse_uuid(_user_sub, detail="Invalid token subject")
 
                 user_roles = await uow.project_roles.get_roles_for_user_in_project(
                     project_id=project_id, user_id=user_id

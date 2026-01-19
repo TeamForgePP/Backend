@@ -14,7 +14,7 @@ from src.modules.kanban.schemas import (
 from src.modules.kanban.schemas.kanban import BasicResponse
 from src.modules.kanban.services import KanbanService
 
-router = APIRouter(prefix="/projects/kanban", tags=["kanban"])
+router = APIRouter(prefix="/kanban", tags=["kanban"])
 user_dep = Depends(require_user_or_admin)
 
 

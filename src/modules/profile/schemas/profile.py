@@ -7,7 +7,7 @@ class ProfileResponse(BaseModel):
     full_name: str
     group: str | None
     role: str | None
-    teams: list[str]
+    active_project: str | None
     email: EmailStr
 
 

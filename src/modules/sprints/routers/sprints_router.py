@@ -6,7 +6,7 @@ from src.core.security.dependencies import PrincipalContext, require_user_or_adm
 from src.modules.sprints.schemas import AllSprintsResponse, BasicResponse, Sprint
 from src.modules.sprints.services import SprintsService
 
-router = APIRouter(prefix="/projects/sprints", tags=["sprints"])
+router = APIRouter(prefix="/sprints", tags=["sprints"])
 user_dep = Depends(require_user_or_admin)
 
 
