@@ -28,7 +28,7 @@ class UserAuthService:
         redis_uow = RedisUnitOfWork()
         attempts_service = LoginAttemptsService(redis_uow.redis)
 
-        identifier = data.email
+        identifier = str(data.email)
         client_ip = request.client.host if request.client else "unknown"
 
         if await attempts_service.is_blocked(identifier):
