@@ -21,6 +21,8 @@ from src.modules.home.schemas import (
     Project,
     ProjectsResponse,
     SprintMap,
+    User,
+    UsersResponse,
 )
 
 logger = get_logger("home.service")
@@ -286,6 +288,64 @@ class HomeService:
             return BasicResponse(success=True, message="Project successfully created")
 
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized user")
+
+    @classmethod
+    async def get_users_for_team(cls, _user_sub: str, _user_role: Role) -> UsersResponse:
+        async with get_uow() as uow:
+            try:
+                logger.info("get_users_for_team started")
+
+                if _user_role == "user":
+                    user_id = UUID(_user_sub)
+                    user = await uow.users.get_by_id(user_id)
+                    if not user:
+                        raise HTTPException(
+                            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+                        )
+                    if not user.group_id:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="User doesn't belong to any group",
+                        )
+
+                    users = await uow.users.get_by_group(user.group_id)
+                    if not users:
+                        raise HTTPException(
+                            status_code=status.HTTP_404_NOT_FOUND, detail="Users not found"
+                        )
+                    users_response_for_admin: list[User] = []
+
+                    for u in users:
+                        info = User(
+                            id=u.id, name=u.first_name, last_name=u.last_name, in_team=u.in_team
+                        )
+                        users_response_for_admin.append(info)
+                    return UsersResponse(users=users_response_for_admin)
+
+                elif _user_role == "admin":
+                    users = await uow.users.get_all()
+                    users_response: list[User] = []
+
+                    for u in users:
+                        info = User(
+                            id=u.id, name=u.first_name, last_name=u.last_name, in_team=u.in_team
+                        )
+                        users_response.append(info)
+                    return UsersResponse(users=users_response)
+
+                else:
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized user"
+                    )
+
+            except HTTPException:
+                raise
+            except Exception as e:
+                logger.error("Error during get users: %s", str(e))
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Internal Server Error during get users",
+                ) from e
 
     @classmethod
     async def get_home_info(cls, _user_sub: str, _user_role: Role) -> ProjectsResponse:

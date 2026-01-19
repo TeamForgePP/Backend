@@ -50,3 +50,14 @@ class CreateProjectRequest(BaseModel):
     description: str | None = None
     team: list[TeamMember]
     git_organization: str = Field(default="")
+
+
+class User(BaseModel):
+    id: UUID
+    name: str
+    last_name: str
+    in_team: bool
+
+
+class UsersResponse(BaseModel):
+    users: list[User]
