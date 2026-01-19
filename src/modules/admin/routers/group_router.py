@@ -6,8 +6,7 @@ from src.core.security.dependencies import AccessContext, require_admin
 from src.modules.admin.schemas import GroupCreate, GroupRead, GroupUpdate, UserRead
 from src.modules.admin.services.GroupService import GroupService
 
-router = APIRouter(prefix="/group", tags=["admin"])
-
+router = APIRouter(prefix="/admin/groups", tags=["admin"])
 admin_dep = Depends(require_admin)
 
 
@@ -15,7 +14,7 @@ admin_dep = Depends(require_admin)
     "",
     response_model=GroupRead,
     status_code=status.HTTP_201_CREATED,
-    name="create_group",
+    name="admin_create_group",
 )
 async def create_group(
     data: GroupCreate,
@@ -28,7 +27,7 @@ async def create_group(
     "",
     response_model=list[GroupRead],
     status_code=status.HTTP_200_OK,
-    name="get_all_groups",
+    name="admin_get_all_groups",
 )
 async def get_all_groups(
     _admin: AccessContext = admin_dep,
@@ -40,7 +39,7 @@ async def get_all_groups(
     "/{group_id}",
     response_model=GroupRead,
     status_code=status.HTTP_200_OK,
-    name="get_group_by_id",
+    name="admin_get_group_by_id",
 )
 async def get_group_by_id(
     group_id: UUID,
@@ -53,7 +52,7 @@ async def get_group_by_id(
     "/{group_id}/students",
     response_model=list[UserRead],
     status_code=status.HTTP_200_OK,
-    name="get_group_students",
+    name="admin_get_group_students",
 )
 async def get_group_students(
     group_id: UUID,
@@ -66,7 +65,7 @@ async def get_group_students(
     "/{group_id}",
     response_model=GroupRead,
     status_code=status.HTTP_200_OK,
-    name="update_group",
+    name="admin_update_group",
 )
 async def update_group(
     group_id: UUID,
@@ -79,7 +78,7 @@ async def update_group(
 @router.delete(
     "/{group_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    name="delete_group",
+    name="admin_delete_group",
 )
 async def delete_group(
     group_id: UUID,

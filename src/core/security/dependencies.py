@@ -13,7 +13,7 @@ Role = Literal["admin", "user"]
 
 class RawPayload(TypedDict, total=False):
     sub: str
-    typ: TokenType
+    typ: Any
     role: Role
     iat: int
     exp: int
@@ -70,7 +70,6 @@ def get_access_context(request: Request) -> AccessContext:
         ) from err
 
     raw_payload_dict = cast(dict[str, Any], payload_dict)
-    payload = cast(RawPayload, raw_payload_dict)
 
     if admin_token_service.is_admin_access(raw_payload_dict):
         role: Role = "admin"
@@ -86,10 +85,12 @@ def get_access_context(request: Request) -> AccessContext:
             detail="token rejected",
         )
 
-    sub = payload.get("sub", "admin")
+    sub_val = raw_payload_dict.get("sub")
+    if not isinstance(sub_val, str):
+        sub_val = "admin"
 
     return AccessContext(
-        sub=sub,
+        sub=sub_val,
         role=role,
         token_type=token_type,
     )

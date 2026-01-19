@@ -11,12 +11,16 @@ from src.modules.admin.schemas import (
 )
 from src.modules.admin.services import UserService
 
-router = APIRouter(prefix="/user", tags=["admin"])
-
+router = APIRouter(prefix="/admin/users", tags=["admin"])
 admin_dep = Depends(require_admin)
 
 
-@router.post("", response_model=UserRead, status_code=status.HTTP_201_CREATED, name="create_user")
+@router.post(
+    "",
+    response_model=UserRead,
+    status_code=status.HTTP_201_CREATED,
+    name="admin_create_user",
+)
 async def create_user(
     data: UserCreate,
     _admin: AccessContext = admin_dep,
@@ -24,7 +28,12 @@ async def create_user(
     return await UserService.create_user(data)
 
 
-@router.get("/{user_id}", response_model=UserRead, status_code=status.HTTP_200_OK, name="get_user")
+@router.get(
+    "/{user_id}",
+    response_model=UserRead,
+    status_code=status.HTTP_200_OK,
+    name="admin_get_user_by_id",
+)
 async def get_user_by_id(
     user_id: UUID,
     _admin: AccessContext = admin_dep,
@@ -36,7 +45,7 @@ async def get_user_by_id(
     "/by-email/{email}",
     response_model=UserRead,
     status_code=status.HTTP_200_OK,
-    name="get_user_by_email",
+    name="admin_get_user_by_email",
 )
 async def get_user_by_email(
     email: str,
@@ -45,7 +54,12 @@ async def get_user_by_email(
     return await UserService.get_user_by_email(email)
 
 
-@router.patch("/", response_model=UserRead, status_code=status.HTTP_200_OK, name="update_user")
+@router.patch(
+    "",
+    response_model=UserRead,
+    status_code=status.HTTP_200_OK,
+    name="admin_update_user",
+)
 async def update_user(
     data: UserProfileUpdate,
     _admin: AccessContext = admin_dep,
@@ -57,7 +71,7 @@ async def update_user(
     "/password",
     response_model=UserRead,
     status_code=status.HTTP_200_OK,
-    name="update_user_password",
+    name="admin_update_user_password",
 )
 async def update_user_password(
     data: UserPasswordUpdate,
@@ -66,7 +80,11 @@ async def update_user_password(
     return await UserService.update_user_password(data)
 
 
-@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT, name="delete_user")
+@router.delete(
+    "/{user_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    name="admin_delete_user",
+)
 async def delete_user(
     user_id: UUID,
     _admin: AccessContext = admin_dep,
