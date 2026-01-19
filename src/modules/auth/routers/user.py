@@ -7,7 +7,11 @@ router = APIRouter(prefix="/auth/user", tags=["auth(user)"])
 
 
 @router.post("/login", response_model=UserTokenPair, status_code=status.HTTP_200_OK)
-async def login(request: Request, data: UserLoginRequest, response: Response) -> UserTokenPair:
+async def login(
+    request: Request,
+    data: UserLoginRequest,
+    response: Response,
+) -> UserTokenPair:
     return await UserAuthService.login(request, data, response)
 
 

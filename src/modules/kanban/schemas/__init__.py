@@ -7,6 +7,7 @@ from .kanban import (
     PerformerNewTask,
     Project,
     SelectedSprint,
+    SprintsResponse,
     Task,
     TaskResponse,
     UpdateStatusRequest,
@@ -24,4 +25,5 @@ __all__ = [
     "TaskResponse",
     "UpdateStatusRequest",
     "BasicResponse",
+    "SprintsResponse",
 ]

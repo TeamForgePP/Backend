@@ -72,6 +72,12 @@ class UserCookies(BaseModel):
     refresh: str = "user_refresh_token"
 
 
+class User(BaseModel):
+    login: str = "user_access_token"
+    password: str = "user_refresh_token"
+    cookies: UserCookies = UserCookies()
+
+
 class JWT(BaseModel):
     secret: str = ""
     algorithm: str = "HS256"
@@ -104,7 +110,7 @@ class Config(BaseSettings):
     minio: Minio = Minio()
     logging: Logging = Logging()
     admin: Admin = Admin()
-    user_cookies: UserCookies = UserCookies()
+    user: User = User()
     jwt: JWT = JWT()
     redis: Redis = Redis()
 
