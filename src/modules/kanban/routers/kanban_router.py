@@ -7,6 +7,7 @@ from src.modules.kanban.schemas import (
     KanbanResponse,
     MembersResponse,
     NewTaskRequest,
+    SprintsResponse,
     TaskResponse,
     UpdateStatusRequest,
 )
@@ -48,6 +49,16 @@ async def get_kanban_by_sprint_id(
 )
 async def create_task(data: NewTaskRequest, _user: PrincipalContext = user_dep) -> BasicResponse:
     return await KanbanService.create_task(data, _user.sub, _user.role)
+
+
+@router.get(
+    "/sprints",
+    response_model=SprintsResponse,
+    status_code=status.HTTP_200_OK,
+    name="get number of sprints",
+)
+async def get_number_of_sprints(_user: PrincipalContext = user_dep) -> SprintsResponse:
+    return await KanbanService.get_number_of_sprints(_user.sub, _user.role)
 
 
 @router.get(

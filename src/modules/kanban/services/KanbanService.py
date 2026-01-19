@@ -13,6 +13,7 @@ from src.modules.kanban.schemas import (
     NewTaskRequest,
     Project,
     SelectedSprint,
+    SprintsResponse,
     TaskResponse,
     UpdateStatusRequest,
 )
@@ -132,6 +133,31 @@ class KanbanService:
                     priority=task.priority,
                     deadline=KanbanUtils.as_date(task.deadline),
                 )
+
+            except HTTPException:
+                raise
+            except Exception as e:
+                logger.error("Error during get info: %s", str(e))
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Internal Server Error during get info",
+                ) from e
+
+    @classmethod
+    async def get_number_of_sprints(cls, _user_sub: str, _user_role: Role) -> SprintsResponse:
+        async with get_uow() as uow:
+            try:
+                project_id, project_name = await KanbanUtils.resolve_project(
+                    uow, _user_sub, _user_role
+                )
+
+                sprints = await uow.sprints.get_by_project_id(project_id)
+                if not sprints:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND, detail="Sprints not found"
+                    )
+                ids: list[UUID] = [s.id for s in sprints]
+                return SprintsResponse(ids=ids, number=len(sprints))
 
             except HTTPException:
                 raise

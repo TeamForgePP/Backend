@@ -76,3 +76,8 @@ class UpdateStatusRequest(BaseModel):
 class BasicResponse(BaseModel):
     success: bool
     message: str
+
+
+class SprintsResponse(BaseModel):
+    ids: list[UUID]
+    number: int
