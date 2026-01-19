@@ -11,17 +11,16 @@ def set_user_cookies(response: Response, tokens: UserTokenPair) -> None:
         httponly=True,
         secure=False,
         samesite="lax",
-        max_age=cfg.jwt.access_token_minutes,
+        max_age=cfg.jwt.access_cookie_max_age,
         path="/",
     )
-
     response.set_cookie(
         key=cfg.user.cookies.refresh,
         value=tokens.refresh_token,
         httponly=True,
         secure=False,
         samesite="lax",
-        max_age=cfg.jwt.refresh_token_days,
+        max_age=cfg.jwt.refresh_cookie_max_age,
         path="/",
     )
 
