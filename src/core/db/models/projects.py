@@ -21,7 +21,7 @@ class Projects(Base):
 
     description: Mapped[str | None] = mapped_column(Text)
 
-    is_completed: Mapped[bool] = mapped_column(Boolean, nullable=False, default="false")
+    is_completed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # avatar_url: Mapped[str | None] = mapped_column(Text) будущий функционал
 

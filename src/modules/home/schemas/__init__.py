@@ -6,6 +6,8 @@ from .home import (
     ProjectsResponse,
     SprintMap,
     TeamMember,
+    User,
+    UsersResponse,
 )
 
 __all__ = [
@@ -16,4 +18,6 @@ __all__ = [
     "BasicResponse",
     "TeamMember",
     "CreateProjectRequest",
+    "User",
+    "UsersResponse",
 ]

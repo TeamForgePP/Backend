@@ -1,11 +1,13 @@
 import logging
 import sys
 import tomllib
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 RESET = "\x1b[0m"
-COLORS = {
+COLORS: Mapping[str, str] = {
     "DEBUG": "\x1b[37m",
     "INFO": "\x1b[34m",
     "WARNING": "\x1b[33m",
@@ -25,68 +27,53 @@ class UTCFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         ts = self.formatTime(record)
-
         level = record.levelname
 
         level_padded = f"{level:<7}"
-
         if self.use_color:
-            color = COLORS.get(level, "")
+            color = COLORS.get(level)
             if color:
                 level_padded = f"{color}{level_padded}{RESET}"
 
-        name_padded = f"{record.name:<20}"
-        line_padded = f"{record.lineno:<5}"
-        func_padded = f"{record.funcName:<20}"
-
+        name = record.name
         message = record.getMessage()
 
         if record.exc_info:
-            message = f"{message}\n{self.formatException(record.exc_info)}"
+            message += "\n" + self.formatException(record.exc_info)
 
-        if record.stack_info:
-            message = f"{message}\n{record.stack_info}"
-
-        return f"{ts} | {level_padded} | {name_padded}:{line_padded} {func_padded} | {message}"
+        return f"{ts} | {level_padded} | {name} | {message}"
 
 
 def setup_logging(config_path: str = "config.toml") -> None:
-    cfg: dict = {}
+    cfg: dict[str, Any] = {}
     path = Path(config_path)
     if path.exists():
-        with open(path, "rb") as f:
+        with path.open("rb") as f:
             cfg = tomllib.load(f)
 
-    log_cfg = cfg.get("logging", {})
-    level = str(log_cfg.get("level", "INFO")).upper()
-    to_file = bool(log_cfg.get("to_file", False))
-    log_file = str(log_cfg.get("file", "logs/app.log"))
+    logging_cfg = cfg.get("logging", {})
+    if not isinstance(logging_cfg, dict):
+        logging_cfg = {}
 
-    stream_formatter = UTCFormatter(use_color=True)
-    file_formatter = UTCFormatter(use_color=False)
-
-    stream_handler = logging.StreamHandler(sys.stdout)
-    stream_handler.setFormatter(stream_formatter)
+    level_name = str(logging_cfg.get("level", "INFO")).upper()
+    level = getattr(logging, level_name, logging.INFO)
 
     root = logging.getLogger()
     root.setLevel(level)
-
     root.handlers.clear()
-    root.addHandler(stream_handler)
 
-    if to_file:
-        Path(log_file).parent.mkdir(parents=True, exist_ok=True)
-        file_handler = logging.FileHandler(log_file, encoding="utf-8")
-        file_handler.setFormatter(file_formatter)
-        root.addHandler(file_handler)
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(level)
+    handler.setFormatter(UTCFormatter(use_color=True))
+    root.addHandler(handler)
 
-    logging.captureWarnings(True)
-
-    for logger_name in ("uvicorn", "uvicorn.error", "uvicorn.access", "fastapi"):
-        lg = logging.getLogger(logger_name)
+    for name in ("uvicorn", "uvicorn.error", "uvicorn.access", "fastapi"):
+        lg = logging.getLogger(name)
         lg.handlers.clear()
         lg.propagate = True
         lg.setLevel(level)
+
+    logging.captureWarnings(True)
 
 
 def get_logger(name: str) -> logging.Logger:
