@@ -1,7 +1,7 @@
 from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.db.enums import TaskStatus
@@ -36,6 +36,13 @@ class TasksRepo(BaseRepository):
         result = await self._session.execute(stmt)
         tasks = result.scalars().all()
         return cast(list[Tasks], tasks)
+
+    async def get_next_seq_for_project(self, project_id: UUID) -> int:
+        result = await self._session.execute(
+            select(func.coalesce(func.max(Tasks.seq), 0)).where(Tasks.project_id == project_id)
+        )
+        max_seq = result.scalar_one()
+        return int(max_seq) + 1
 
     async def get_by_sprint_id(self, sprint_id: UUID) -> list[Tasks]:
         result = (

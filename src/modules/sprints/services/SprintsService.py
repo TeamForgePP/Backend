@@ -109,18 +109,24 @@ class SprintsService:
                         status_code=status.HTTP_404_NOT_FOUND,
                         detail="Sprint not found",
                     )
+
                 if sprint.status != SprintStatus.ACTIVE:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail="Sprint cannot be completed",
                     )
 
-                await uow.sprints.update(sprint_id, {"status": SprintStatus.COMPLETED})
-
                 future_sprints = await uow.sprints.get_future_sprints_in_project(sprint.project_id)
-                if future_sprints:
-                    next_sprint = future_sprints[0]
-                    await uow.sprints.update(next_sprint.id, {"status": SprintStatus.ACTIVE})
+                if not future_sprints:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Cannot complete sprint: no upcoming sprint found",
+                    )
+
+                next_sprint = future_sprints[0]
+
+                await uow.sprints.update(sprint_id, {"status": SprintStatus.COMPLETED})
+                await uow.sprints.update(next_sprint.id, {"status": SprintStatus.ACTIVE})
 
                 await uow.commit()
                 return BasicResponse(success=True, message="Sprint successfully completed")
