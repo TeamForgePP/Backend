@@ -1,7 +1,7 @@
 from datetime import date
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from src.core.db import TaskPriority, TaskStatus, TeamRole
 
@@ -26,18 +26,18 @@ class Performer(BaseModel):
 class Task(BaseModel):
     id: UUID
     title: str
-    tags: list[TeamRole]
+    tag: TeamRole | None = None
     status: TaskStatus
     deadline: date
     priority: TaskPriority
-    performes: list[Performer]
+    performers: list[Performer] = Field(default_factory=list)
     key: str
 
 
 class KanbanResponse(BaseModel):
     project: Project
     selected_sprint: SelectedSprint
-    tasks: list[Task]
+    tasks: list[Task] = Field(default_factory=list)
 
 
 class PerformerNewTask(BaseModel):
@@ -45,27 +45,28 @@ class PerformerNewTask(BaseModel):
 
 
 class NewTaskRequest(BaseModel):
-    sprint_id: UUID
+    sprint_id: UUID | None = None
     title: str
     description: str
-    performes: list[PerformerNewTask]
+    performers: list[PerformerNewTask] = Field(default_factory=list)
     priority: TaskPriority
     deadline: date
+    tag: TeamRole | None = None
 
 
 class MembersResponse(BaseModel):
-    members: list[Performer]
+    members: list[Performer] = Field(default_factory=list)
 
 
 class TaskResponse(BaseModel):
     id: UUID
     title: str
     description: str
-    users: list[
-        Performer
-    ]  # тут чуть по другому, чем в документации, тк таска может быть назначена нескольким типам
+    performers: list[Performer] = Field(default_factory=list)
     priority: TaskPriority
     deadline: date
+    tag: TeamRole | None = None
+    key: str
 
 
 class UpdateStatusRequest(BaseModel):
@@ -78,6 +79,11 @@ class BasicResponse(BaseModel):
     message: str
 
 
+class SprintItem(BaseModel):
+    id: UUID
+    label: str
+
+
 class SprintsResponse(BaseModel):
-    ids: list[UUID]
     number: int
+    sprints: list[SprintItem] = Field(default_factory=list)

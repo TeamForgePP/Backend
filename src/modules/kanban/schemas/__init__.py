@@ -7,6 +7,7 @@ from .kanban import (
     PerformerNewTask,
     Project,
     SelectedSprint,
+    SprintItem,
     SprintsResponse,
     Task,
     TaskResponse,
@@ -14,16 +15,17 @@ from .kanban import (
 )
 
 __all__ = [
+    "BasicResponse",
+    "KanbanResponse",
+    "MembersResponse",
+    "NewTaskRequest",
+    "Performer",
+    "PerformerNewTask",
     "Project",
     "SelectedSprint",
-    "Performer",
+    "SprintItem",
+    "SprintsResponse",
     "Task",
-    "KanbanResponse",
-    "PerformerNewTask",
-    "NewTaskRequest",
-    "MembersResponse",
     "TaskResponse",
     "UpdateStatusRequest",
-    "BasicResponse",
-    "SprintsResponse",
 ]
