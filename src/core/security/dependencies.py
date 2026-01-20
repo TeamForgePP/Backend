@@ -33,11 +33,11 @@ class PrincipalContext:
 
 
 def _get_any_access_token_from_cookies(request: Request) -> str:
-    admin_token = request.cookies.get(cfg.admin.cookies.access)
+    admin_token = request.cookies.get(cfg.cookies.admin.access)
     if admin_token:
         return admin_token
 
-    user_token = request.cookies.get(cfg.user.cookies.access)
+    user_token = request.cookies.get(cfg.cookies.user.access)
     if user_token:
         return user_token
 
@@ -48,7 +48,7 @@ def _get_any_access_token_from_cookies(request: Request) -> str:
 
 
 def _get_admin_access_token_from_cookies(request: Request) -> str:
-    token = request.cookies.get(cfg.admin.cookies.access)
+    token = request.cookies.get(cfg.cookies.admin.access)
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

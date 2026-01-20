@@ -6,7 +6,7 @@ from src.modules.auth.schemas.user import UserTokenPair
 
 def set_user_cookies(response: Response, tokens: UserTokenPair) -> None:
     response.set_cookie(
-        key=cfg.user.cookies.access,
+        key=cfg.cookies.user.access,
         value=tokens.access_token,
         httponly=True,
         secure=False,
@@ -15,7 +15,7 @@ def set_user_cookies(response: Response, tokens: UserTokenPair) -> None:
         path="/",
     )
     response.set_cookie(
-        key=cfg.user.cookies.refresh,
+        key=cfg.cookies.user.refresh,
         value=tokens.refresh_token,
         httponly=True,
         secure=False,
@@ -26,5 +26,5 @@ def set_user_cookies(response: Response, tokens: UserTokenPair) -> None:
 
 
 def clear_user_cookies(response: Response) -> None:
-    response.delete_cookie(cfg.user.cookies.access, path="/")
-    response.delete_cookie(cfg.user.cookies.refresh, path="/")
+    response.delete_cookie(cfg.cookies.user.access, path="/")
+    response.delete_cookie(cfg.cookies.user.refresh, path="/")
