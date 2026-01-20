@@ -25,27 +25,26 @@ class ProfileService:
 
         async with get_uow() as uow:
             try:
-                db_user = await uow.users.get_by_id(user_id)
-                if db_user is None:
-                    logger.error("User %s not found in DB", user_id)
+                user = await uow.users.get_by_id(user_id)
+                if user is None:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
                         detail="user not found",
                     )
 
-                group_name = await cls._load_group_name(uow, db_user)
-                active_project, role_value = await cls._load_active_project_and_role(uow, db_user)
+                group_name = await cls._load_group_name(uow, user)
+                active_project, role_value = await cls._load_active_project_and_role(uow, user)
 
-                return cls._build_profile_response(db_user, group_name, active_project, role_value)
+                return cls._build_profile_response(user, group_name, active_project, role_value)
 
             except HTTPException:
                 raise
-            except Exception as e:
+            except Exception as exc:
                 logger.exception("Error during get_profile")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Internal Server Error during get profile",
-                ) from e
+                ) from exc
 
     @classmethod
     async def update_profile(
@@ -57,59 +56,50 @@ class ProfileService:
 
         async with get_uow() as uow:
             try:
-                db_user = await uow.users.get_by_id(user_id)
-                if db_user is None:
-                    logger.error("User %s not found in DB", user_id)
+                user = await uow.users.get_by_id(user_id)
+                if user is None:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
                         detail="user not found",
                     )
 
                 if data.first_name is not None:
-                    db_user.first_name = data.first_name
+                    user.first_name = data.first_name
 
                 if data.last_name is not None:
-                    db_user.last_name = data.last_name
+                    user.last_name = data.last_name
 
                 if data.patronymic is not None:
-                    db_user.patronymic = data.patronymic
+                    user.patronymic = data.patronymic
 
                 if data.group_id is not None:
-                    try:
-                        group_id = data.group_id
-                    except (ValueError, TypeError) as exc:
-                        raise HTTPException(
-                            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                            detail="invalid group id",
-                        ) from exc
-
-                    group_result = await uow.session.execute(
-                        select(Groups.id).where(Groups.id == group_id),
+                    group_exists = await uow.session.execute(
+                        select(Groups.id).where(Groups.id == data.group_id)
                     )
-                    if group_result.first() is None:
+                    if group_exists.first() is None:
                         raise HTTPException(
                             status_code=status.HTTP_404_NOT_FOUND,
                             detail="group not found",
                         )
-                    db_user.group_id = group_id
+                    user.group_id = data.group_id
 
                 await uow.session.flush()
-                await uow.session.refresh(db_user)
+                await uow.session.refresh(user)
                 await uow.commit()
 
-                group_name = await cls._load_group_name(uow, db_user)
-                active_project, role_value = await cls._load_active_project_and_role(uow, db_user)
+                group_name = await cls._load_group_name(uow, user)
+                active_project, role_value = await cls._load_active_project_and_role(uow, user)
 
-                return cls._build_profile_response(db_user, group_name, active_project, role_value)
+                return cls._build_profile_response(user, group_name, active_project, role_value)
 
             except HTTPException:
                 raise
-            except Exception as e:
+            except Exception as exc:
                 logger.exception("Error during update_profile")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Internal Server Error during update profile",
-                ) from e
+                ) from exc
 
     @staticmethod
     def _get_user_id_from_principal(principal: PrincipalContext) -> UUID:
@@ -122,7 +112,6 @@ class ProfileService:
         try:
             return UUID(principal.sub)
         except (ValueError, TypeError) as exc:
-            logger.error("Invalid user id in token subject: %s", principal.sub)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="invalid token subject",
@@ -130,68 +119,57 @@ class ProfileService:
 
     @staticmethod
     async def _load_group_name(uow: UnitOfWork, user: Users) -> str | None:
-        group_id = getattr(user, "group_id", None)
-        if not isinstance(group_id, UUID):
+        if not isinstance(user.group_id, UUID):
             return None
 
-        result = await uow.session.execute(
-            select(Groups.name).where(Groups.id == group_id),
-        )
+        result = await uow.session.execute(select(Groups.name).where(Groups.id == user.group_id))
         row = result.first()
-        if row is None:
-            logger.warning("Group %s referenced by user %s not found", group_id, user.id)
-            return None
-        return cast(str, row[0])
+        return cast(str | None, row[0] if row else None)
 
     @staticmethod
     async def _load_active_project_and_role(
         uow: UnitOfWork,
         user: Users,
     ) -> tuple[str | None, str | None]:
-        if not getattr(user, "in_team", False):
-            return None, "-"
-
         team_result = await uow.session.execute(
             select(Teams.project_id).where(
                 Teams.user_id == user.id,
-                Teams.status == UserStatus.Member,
-            ),
+                Teams.status.in_([UserStatus.Owner, UserStatus.Member]),
+            )
         )
         project_ids = [row[0] for row in team_result.all()]
 
         if not project_ids:
-            logger.warning("User %s has in_team=True but no member team rows", user.id)
             return None, "-"
 
-        projects_result = await uow.session.execute(
+        project_result = await uow.session.execute(
             select(Projects).where(
                 Projects.id.in_(project_ids),
                 Projects.is_completed.is_(False),
-            ),
+            )
         )
-        projects = projects_result.scalars().all()
+        projects = project_result.scalars().all()
 
         if not projects:
-            logger.warning("User %s has no active (is_completed=False) projects", user.id)
             return None, "-"
 
         if len(projects) > 1:
-            logger.warning("User %s has %s active projects, expected 1", user.id, len(projects))
+            logger.warning(
+                "User %s has %d active projects, expected 1",
+                user.id,
+                len(projects),
+            )
 
         active_project = projects[0]
-        active_project_name = active_project.name
 
         roles: list[TeamRole] = await uow.project_roles.get_roles_for_user_in_project(
+            active_project.id,  # порядок ВАЖЕН
             user.id,
-            active_project.id,
         )
 
-        if not roles:
-            role_value: str | None = "-"
-        else:
-            role_value = ", ".join(role.value.upper() for role in roles)
+        role_value = ", ".join(role.value.upper() for role in roles) if roles else "-"
 
-        return active_project_name, role_value
+        return active_project.name, role_value
 
     @staticmethod
     def _build_profile_response(
@@ -200,12 +178,8 @@ class ProfileService:
         active_project: str | None,
         role_value: str | None,
     ) -> ProfileResponse:
-        last_name = getattr(user, "last_name", "") or ""
-        first_name = getattr(user, "first_name", "") or ""
-        patronymic = getattr(user, "patronymic", None)
-
-        patronymic_part = f" {patronymic}" if patronymic else ""
-        full_name = f"{last_name} {first_name}{patronymic_part}".strip()
+        patronymic_part = f" {user.patronymic}" if user.patronymic else ""
+        full_name = f"{user.last_name} {user.first_name} {patronymic_part}".strip()
 
         return ProfileResponse(
             full_name=full_name,
