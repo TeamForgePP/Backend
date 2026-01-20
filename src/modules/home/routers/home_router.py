@@ -11,7 +11,7 @@ from src.modules.home.schemas import (
 )
 from src.modules.home.services import HomeService
 
-router = APIRouter(prefix="/projects", tags=["projects"])
+router = APIRouter(prefix="/main", tags=["projects"])
 user_dep = Depends(require_user_or_admin)
 
 

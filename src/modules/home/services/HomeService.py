@@ -25,6 +25,7 @@ from src.modules.home.schemas import (
     UsersResponse,
 )
 from src.modules.home.utils.home import HomeUtils
+from src.modules.notifications.utils.format import build_notification_content
 
 logger = get_logger("home.service")
 logger.setLevel(logging.INFO)
@@ -64,10 +65,21 @@ class HomeService:
             }
         )
 
+        # Для UI: title = имя проекта, message = тип уведомления
+        project = await uow.projects.get_by_id(project_id)
+        project_name = getattr(project, "name", None) if project else None
+
+        content = build_notification_content(
+            NotificationType.NewInvite,
+            {"project_name": project_name},
+        )
+
         new_notification = await uow.notifications.create(
             {
                 "user_id": invited_user_id,
                 "type": NotificationType.NewInvite,
+                "title": content.title,
+                "message": content.message,
                 "project_id": project_id,
                 "created_at": datetime.now(UTC),
             }
@@ -250,11 +262,13 @@ class HomeService:
                     teamlead_id=teamlead_id,
                 )
 
+                # В БД invitations.invited_by_id NOT NULL.
+                # Админ создаёт проект — считаем, что приглашение “от тимлида проекта”.
                 await cls._invite_member(
                     uow,
                     project_id=project.id,
                     invited_user_id=member_id,
-                    invited_by_id=None,
+                    invited_by_id=teamlead_id,
                 )
 
             await uow.commit()
@@ -408,9 +422,10 @@ class HomeService:
                         deadlines_user = HomeUtils.safe_deadline_list(deadlines_raw_user)
                         nearest_deadline_user = min(deadlines_user) if deadlines_user else None
 
+                        is_owner = TeamRole.TeamLead in roles
                         allowed_actions = AllowedActions(
-                            can_delete=((TeamRole.TeamLead in roles) or (_user_role == "admin")),
-                            can_leave=True,
+                            can_delete=is_owner,
+                            can_leave=not is_owner,
                         )
 
                         project_name = HomeUtils.as_str(getattr(project, "name", ""))
@@ -557,17 +572,17 @@ class HomeService:
                     status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
                 )
 
+            if getattr(project, "teamlead_id", None) == user_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN, detail="Teamlead can't leave project"
+                )
+
             roles = await uow.project_roles.get_roles_for_user_in_project(
                 project_id=project_id, user_id=user_id
             )
             if not roles:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN, detail="You're not a project member"
-                )
-
-            if getattr(project, "teamlead_id", None) == user_id:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN, detail="Teamlead can't leave project"
                 )
 
             await uow.project_roles.delete_all_roles(project_id=project_id, user_id=user_id)
@@ -591,8 +606,8 @@ class HomeService:
         async with get_uow() as uow:
             logger.info("delete_project started | project_id=%s", project_id)
 
-            exists = await uow.projects.get_by_id(project_id)
-            if not exists:
+            project = await uow.projects.get_by_id(project_id)
+            if not project:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="Project not found or already deleted",
@@ -612,11 +627,25 @@ class HomeService:
                         detail="Only teamlead or admin can delete project",
                     )
 
-                await HomeUtils.cleanup_team_members_and_delete_project(uow, project_id=project_id)
+                deleted = await uow.projects.delete(project_id)
+                if not deleted:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="Project not found or already deleted",
+                    )
+
+                await uow.commit()
                 return BasicResponse(success=True, message="Project successfully deleted")
 
             if _user_role == "admin":
-                await HomeUtils.cleanup_team_members_and_delete_project(uow, project_id=project_id)
+                deleted = await uow.projects.delete(project_id)
+                if not deleted:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="Project not found or already deleted",
+                    )
+
+                await uow.commit()
                 return BasicResponse(success=True, message="Project successfully deleted")
 
             raise HTTPException(
