@@ -49,7 +49,7 @@ class CreateProjectRequest(BaseModel):
     name: str
     description: str | None = None
     team: list[TeamMember]
-    git_organization: str = Field(default="")
+    github_url: str = Field(default="")
 
 
 class User(BaseModel):

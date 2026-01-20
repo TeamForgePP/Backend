@@ -1,5 +1,6 @@
 import logging
 from datetime import UTC, datetime
+from typing import cast
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -21,7 +22,6 @@ from src.modules.home.schemas import (
     Project,
     ProjectsResponse,
     SprintMap,
-    User,
     UsersResponse,
 )
 from src.modules.home.utils.home import HomeUtils
@@ -47,6 +47,75 @@ class HomeService:
                     detail="Internal Server Error during project creation",
                 ) from e
 
+    @staticmethod
+    async def _invite_member(
+        uow: UnitOfWork,
+        *,
+        project_id: UUID,
+        invited_user_id: UUID,
+        invited_by_id: UUID | None,
+    ) -> None:
+        await uow.teams.create(
+            {
+                "project_id": project_id,
+                "user_id": invited_user_id,
+                "status": UserStatus.Invited,
+                "created_at": datetime.now(UTC),
+            }
+        )
+
+        new_notification = await uow.notifications.create(
+            {
+                "user_id": invited_user_id,
+                "type": NotificationType.NewInvite,
+                "project_id": project_id,
+                "created_at": datetime.now(UTC),
+            }
+        )
+
+        await uow.invitations.create(
+            {
+                "notification_id": new_notification.id,
+                "project_id": project_id,
+                "invited_user_id": invited_user_id,
+                "invited_by_id": invited_by_id,
+                "status": InvitationStatus.Posted,
+                "created_at": datetime.now(UTC),
+            }
+        )
+
+    @classmethod
+    async def _apply_roles_for_member(
+        cls,
+        uow: UnitOfWork,
+        *,
+        project_id: UUID,
+        member_id: UUID,
+        member_roles: object | None,
+        teamlead_id: UUID,
+    ) -> None:
+        roles_raw: list[object]
+        if isinstance(member_roles, list):
+            roles_raw = cast(list[object], member_roles)
+        else:
+            roles_raw = []
+
+        for role in roles_raw:
+            role_enum = HomeUtils.as_team_role(role)
+            if role_enum == TeamRole.TeamLead and member_id != teamlead_id:
+                logger.warning(
+                    "Ignoring TeamLead role for non-teamlead member | project_id=%s | user_id=%s",
+                    project_id,
+                    member_id,
+                )
+                continue
+
+            await uow.project_roles.add_role(
+                project_id=project_id,
+                user_id=member_id,
+                role=role_enum,
+            )
+
     @classmethod
     async def _create_project_in_uow(
         cls, uow: UnitOfWork, data: CreateProjectRequest, _user_sub: str, _user_role: Role
@@ -54,14 +123,14 @@ class HomeService:
         logger.info("create_project started | name=%s", getattr(data, "name", None))
 
         if _user_role == "user":
-            user_id = HomeUtils.parse_uuid(_user_sub, detail="Invalid token subject")
+            teamlead_id = HomeUtils.parse_uuid(_user_sub, detail="Invalid token subject")
 
             project = await uow.projects.create(
                 {
-                    "teamlead_id": user_id,
+                    "teamlead_id": teamlead_id,
                     "name": data.name,
                     "description": data.description,
-                    "git_organization": data.git_organization,
+                    "github_url": data.github_url,
                     "created_at": datetime.now(UTC),
                 }
             )
@@ -69,14 +138,16 @@ class HomeService:
             await uow.teams.create(
                 {
                     "project_id": project.id,
-                    "user_id": user_id,
+                    "user_id": teamlead_id,
                     "status": UserStatus.Owner,
                     "created_at": datetime.now(UTC),
                 }
             )
 
             await uow.project_roles.add_role(
-                project_id=project.id, user_id=user_id, role=TeamRole.TeamLead
+                project_id=project.id,
+                user_id=teamlead_id,
+                role=TeamRole.TeamLead,
             )
 
             for team_member in data.team:
@@ -87,51 +158,24 @@ class HomeService:
                         detail="Invalid team member id format",
                     )
 
-                if member_id == user_id:
+                member_roles = getattr(team_member, "roles", None)
+
+                await cls._apply_roles_for_member(
+                    uow,
+                    project_id=project.id,
+                    member_id=member_id,
+                    member_roles=member_roles,
+                    teamlead_id=teamlead_id,
+                )
+
+                if member_id == teamlead_id:
                     continue
 
-                member_roles = getattr(team_member, "roles", None)
-                if member_roles:
-                    for role in member_roles:
-                        role_enum = HomeUtils.as_team_role(role)
-                        if role_enum == TeamRole.TeamLead:
-                            raise HTTPException(
-                                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                                detail="Only one team lead can be",
-                            )
-                        await uow.project_roles.add_role(
-                            project_id=project.id,
-                            user_id=member_id,
-                            role=role_enum,
-                        )
-
-                await uow.teams.create(
-                    {
-                        "project_id": project.id,
-                        "user_id": member_id,
-                        "status": UserStatus.Invited,
-                        "created_at": datetime.now(UTC),
-                    }
-                )
-
-                new_notification = await uow.notifications.create(
-                    {
-                        "user_id": member_id,
-                        "type": NotificationType.NewInvite,
-                        "project_id": project.id,
-                        "created_at": datetime.now(UTC),
-                    }
-                )
-
-                await uow.invitations.create(
-                    {
-                        "notification_id": new_notification.id,
-                        "project_id": project.id,
-                        "invited_user_id": member_id,
-                        "invited_by_id": user_id,
-                        "status": InvitationStatus.Posted,
-                        "created_at": datetime.now(UTC),
-                    }
+                await cls._invite_member(
+                    uow,
+                    project_id=project.id,
+                    invited_user_id=member_id,
+                    invited_by_id=teamlead_id,
                 )
 
             await uow.commit()
@@ -148,8 +192,14 @@ class HomeService:
                         detail="Invalid team member id format",
                     )
 
-                member_roles = getattr(team_member, "roles", None) or []
-                normalized_roles = [HomeUtils.as_team_role(r) for r in member_roles]
+                member_roles = getattr(team_member, "roles", None)
+                roles_raw: list[object]
+                if isinstance(member_roles, list):
+                    roles_raw = cast(list[object], member_roles)
+                else:
+                    roles_raw = []
+
+                normalized_roles = [HomeUtils.as_team_role(r) for r in roles_raw]
                 if TeamRole.TeamLead in normalized_roles:
                     team_leads.append(member_id)
 
@@ -164,16 +214,22 @@ class HomeService:
                     detail="Only one teamlead can be in project",
                 )
 
-            team_lead = team_leads[0]
+            teamlead_id = team_leads[0]
 
             project = await uow.projects.create(
                 {
-                    "teamlead_id": team_lead,
+                    "teamlead_id": teamlead_id,
                     "name": data.name,
                     "description": data.description,
-                    "git_organization": data.git_organization,
+                    "github_url": data.github_url,
                     "created_at": datetime.now(UTC),
                 }
+            )
+
+            await uow.project_roles.add_role(
+                project_id=project.id,
+                user_id=teamlead_id,
+                role=TeamRole.TeamLead,
             )
 
             for team_member in data.team:
@@ -185,47 +241,20 @@ class HomeService:
                     )
 
                 member_roles = getattr(team_member, "roles", None)
-                if member_roles:
-                    for role in member_roles:
-                        role_enum = HomeUtils.as_team_role(role)
-                        if role_enum == TeamRole.TeamLead and member_id != team_lead:
-                            raise HTTPException(
-                                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                                detail="Only one team lead can be",
-                            )
-                        await uow.project_roles.add_role(
-                            project_id=project.id,
-                            user_id=member_id,
-                            role=role_enum,
-                        )
 
-                await uow.teams.create(
-                    {
-                        "project_id": project.id,
-                        "user_id": member_id,
-                        "status": UserStatus.Invited,
-                        "created_at": datetime.now(UTC),
-                    }
+                await cls._apply_roles_for_member(
+                    uow,
+                    project_id=project.id,
+                    member_id=member_id,
+                    member_roles=member_roles,
+                    teamlead_id=teamlead_id,
                 )
 
-                new_notification = await uow.notifications.create(
-                    {
-                        "user_id": member_id,
-                        "type": NotificationType.NewInvite,
-                        "project_id": project.id,
-                        "created_at": datetime.now(UTC),
-                    }
-                )
-
-                await uow.invitations.create(
-                    {
-                        "notification_id": new_notification.id,
-                        "project_id": project.id,
-                        "invited_user_id": member_id,
-                        "invited_by_id": None,
-                        "status": InvitationStatus.Posted,
-                        "created_at": datetime.now(UTC),
-                    }
+                await cls._invite_member(
+                    uow,
+                    project_id=project.id,
+                    invited_user_id=member_id,
+                    invited_by_id=None,
                 )
 
             await uow.commit()
@@ -239,7 +268,12 @@ class HomeService:
             try:
                 logger.info("get_users_for_team started")
 
-                if _user_role == "user":
+                users: list[object] = []
+
+                if _user_role == "admin":
+                    users = cast(list[object], await uow.users.get_all())
+
+                elif _user_role == "user":
                     user_id = HomeUtils.parse_uuid(_user_sub, detail="Invalid token subject")
 
                     user = await uow.users.get_by_id(user_id)
@@ -250,52 +284,15 @@ class HomeService:
                     if not isinstance(group_id, UUID):
                         return UsersResponse(users=[])
 
-                    users = await uow.users.get_by_group(group_id)
-                    if not users:
-                        return UsersResponse(users=[])
+                    users = cast(list[object], await uow.users.get_by_group(group_id))
 
-                    users_response: list[User] = []
+                else:
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Unauthorized user",
+                    )
 
-                    for u in users:
-                        uid = getattr(u, "id", None)
-                        if not isinstance(uid, UUID):
-                            continue
-
-                        first_name = HomeUtils.as_str(getattr(u, "first_name", ""))
-                        last_name = HomeUtils.as_str(getattr(u, "last_name", ""))
-                        in_team = HomeUtils.as_bool(getattr(u, "in_team", False))
-
-                        users_response.append(
-                            User(id=uid, name=first_name, last_name=last_name, in_team=in_team)
-                        )
-
-                    return UsersResponse(users=users_response)
-
-                if _user_role == "admin":
-                    users = await uow.users.get_all()
-                    if not users:
-                        return UsersResponse(users=[])
-
-                    users_response_admin: list[User] = []
-
-                    for u in users:
-                        uid = getattr(u, "id", None)
-                        if not isinstance(uid, UUID):
-                            continue
-
-                        first_name = HomeUtils.as_str(getattr(u, "first_name", ""))
-                        last_name = HomeUtils.as_str(getattr(u, "last_name", ""))
-                        in_team = HomeUtils.as_bool(getattr(u, "in_team", False))
-
-                        users_response_admin.append(
-                            User(id=uid, name=first_name, last_name=last_name, in_team=in_team)
-                        )
-
-                    return UsersResponse(users=users_response_admin)
-
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized user"
-                )
+                return HomeUtils.to_users_response(users)
 
             except HTTPException:
                 raise
@@ -615,47 +612,14 @@ class HomeService:
                         detail="Only teamlead or admin can delete project",
                     )
 
-                teams = await uow.teams.get_by_project(project_id=project_id) or []
-
-                for team in teams:
-                    if getattr(team, "status", None) in (UserStatus.Owner, UserStatus.Member):
-                        uid = getattr(team, "user_id", None)
-                        if isinstance(uid, UUID):
-                            user = await uow.users.get_by_id(user_id=uid)
-                            if user:
-                                user.in_team = False
-
-                deleted = await uow.projects.delete(project_id)
-                if not deleted:
-                    raise HTTPException(
-                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                        detail="Failed to delete project",
-                    )
-
-                await uow.commit()
+                await HomeUtils.cleanup_team_members_and_delete_project(uow, project_id=project_id)
                 return BasicResponse(success=True, message="Project successfully deleted")
 
             if _user_role == "admin":
-                teams = await uow.teams.get_by_project(project_id=project_id) or []
-
-                for team in teams:
-                    if getattr(team, "status", None) in (UserStatus.Owner, UserStatus.Member):
-                        uid = getattr(team, "user_id", None)
-                        if isinstance(uid, UUID):
-                            user = await uow.users.get_by_id(user_id=uid)
-                            if user:
-                                user.in_team = False
-
-                deleted = await uow.projects.delete(project_id)
-                if not deleted:
-                    raise HTTPException(
-                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                        detail="Failed to delete project",
-                    )
-
-                await uow.commit()
+                await HomeUtils.cleanup_team_members_and_delete_project(uow, project_id=project_id)
                 return BasicResponse(success=True, message="Project successfully deleted")
 
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized user"
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Unauthorized user",
             )

@@ -1,9 +1,15 @@
+from collections.abc import Iterable
 from datetime import date, datetime
 from uuid import UUID
 
 from fastapi import HTTPException, status
 
-from src.core.db import TeamRole
+from src.core.db import (
+    TeamRole,
+    UnitOfWork,
+    UserStatus,
+)
+from src.modules.home.schemas import User, UsersResponse
 
 
 class HomeUtils:
@@ -35,6 +41,55 @@ class HomeUtils:
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Invalid team role format",
         )
+
+    @staticmethod
+    def to_users_response(users: Iterable[object] | None) -> UsersResponse:
+        if not users:
+            return UsersResponse(users=[])
+
+        result: list[User] = []
+
+        for u in users:
+            uid = getattr(u, "id", None)
+            if not isinstance(uid, UUID):
+                continue
+
+            result.append(
+                User(
+                    id=uid,
+                    name=HomeUtils.as_str(getattr(u, "first_name", "")),
+                    last_name=HomeUtils.as_str(getattr(u, "last_name", "")),
+                    in_team=HomeUtils.as_bool(getattr(u, "in_team", False)),
+                )
+            )
+
+        return UsersResponse(users=result)
+
+    @classmethod
+    async def cleanup_team_members_and_delete_project(
+        cls,
+        uow: UnitOfWork,
+        *,
+        project_id: UUID,
+    ) -> None:
+        teams = await uow.teams.get_by_project(project_id=project_id) or []
+
+        for team in teams:
+            if getattr(team, "status", None) in (UserStatus.Owner, UserStatus.Member):
+                uid = getattr(team, "user_id", None)
+                if isinstance(uid, UUID):
+                    user = await uow.users.get_by_id(user_id=uid)
+                    if user:
+                        user.in_team = False
+
+        deleted = await uow.projects.delete(project_id)
+        if not deleted:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to delete project",
+            )
+
+        await uow.commit()
 
     @classmethod
     def is_active_sprint(cls, status_value: object) -> bool:
