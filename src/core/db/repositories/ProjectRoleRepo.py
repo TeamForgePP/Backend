@@ -2,6 +2,7 @@ from typing import Any, cast
 from uuid import UUID
 
 from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.db.enums import TeamRole
@@ -53,9 +54,22 @@ class ProjectRoleRepo:
         }
         relation = ProjectRole(**data)
         self._session.add(relation)
-        await self._session.flush()
-        await self._session.refresh(relation)
-        return relation
+
+        try:
+            await self._session.flush()
+            await self._session.refresh(relation)
+            return relation
+        except IntegrityError:
+            await self._session.rollback()
+            result = await self._session.execute(
+                select(ProjectRole).where(
+                    ProjectRole.project_id == project_id,
+                    ProjectRole.user_id == user_id,
+                    ProjectRole.role == role,
+                )
+            )
+            existing = result.scalar_one()
+            return cast(ProjectRole, existing)
 
     async def delete_role(
         self,
