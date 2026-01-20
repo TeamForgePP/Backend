@@ -29,54 +29,45 @@ class NotificationsService:
 
                 all_notifications = await uow.notifications.get_by_user_id(user_id)
                 if not all_notifications:
-                    raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND, detail="Notifications not found"
-                    )
+                    return NotificationsResponse(notifications=[], unread_count=0)
 
                 notifications: list[Notification] = []
                 unread = 0
+
                 for notification in all_notifications:
                     invitation = await uow.invitations.get_by_notification_id(notification.id)
-                    if not invitation:
-                        info = Notification(
+
+                    notifications.append(
+                        Notification(
                             id=notification.id,
                             type=notification.type,
                             title=notification.title,
                             message=notification.message,
                             is_read=notification.is_read,
                             created_at=notification.created_at,  # type: ignore
-                            invitation_id=None,
+                            invitation_id=invitation.id if invitation else None,
                         )
-                    else:
-                        info = Notification(
-                            id=notification.id,
-                            type=notification.type,
-                            title=notification.title,
-                            message=notification.message,
-                            is_read=notification.is_read,
-                            created_at=notification.created_at,  # type: ignore
-                            invitation_id=invitation.id,
-                        )
+                    )
 
                     if not notification.is_read:
                         unread += 1
 
-                    notifications.append(info)
-
                 return NotificationsResponse(notifications=notifications, unread_count=unread)
 
+            except HTTPException:
+                raise
             except Exception as e:
-                logger.error("Error during get info: %s", str(e))
+                logger.exception("Error during get notifications info")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Internal Server Error during get info",
+                    detail="Internal Server Error during get notifications info",
                 ) from e
 
     @classmethod
     async def get_invitation_info(cls, invitation_id: UUID) -> InvitationResponse:
         async with get_uow() as uow:
             try:
-                logger.info("get_notifications_info started")
+                logger.info("get_invitation_info started")
 
                 invitation = await uow.invitations.get_by_id(invitation_id=invitation_id)
                 if not invitation:
@@ -103,9 +94,12 @@ class NotificationsService:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND, detail="Teamlead not found"
                     )
+
                 roles_teamlead = await uow.project_roles.get_roles_for_user_in_project(
                     project_id=project.id, user_id=teamlead.id
                 )
+                roles_teamlead = roles_teamlead or []
+
                 info_teamlead = TeamLeader(
                     id=teamlead.id,
                     first_name=teamlead.first_name,
@@ -115,17 +109,21 @@ class NotificationsService:
 
                 members = await uow.users.get_by_project_id(project_id=project.id)
                 participants: list[Participant] = []
+
                 for participant in members:
                     roles = await uow.project_roles.get_roles_for_user_in_project(
                         project_id=project.id, user_id=participant.id
                     )
-                    info_part = Participant(
-                        id=participant.id,
-                        first_name=participant.first_name,
-                        last_name=participant.last_name,
-                        roles=roles,
+                    roles = roles or []
+
+                    participants.append(
+                        Participant(
+                            id=participant.id,
+                            first_name=participant.first_name,
+                            last_name=participant.last_name,
+                            roles=roles,
+                        )
                     )
-                    participants.append(info_part)
 
                 info_project = Project(
                     id=project.id,
@@ -134,44 +132,49 @@ class NotificationsService:
                     team_leader=info_teamlead,
                     participants=participants,
                 )
-                info = InvitationResponse(
+
+                return InvitationResponse(
                     invitation_id=invitation_id,
                     notification_id=invitation.notification_id,
                     status=invitation.status,
                     project=info_project,
                 )
 
-                return info
-
+            except HTTPException:
+                raise
             except Exception as e:
-                logger.error("Error during get info: %s", str(e))
+                logger.exception("Error during get invitation info")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Internal Server Error during get info",
+                    detail="Internal Server Error during get invitation info",
                 ) from e
 
-    # ---------------- PACTH ---------------- #
-
+    # ---------------- PATCH ---------------- #
     @classmethod
     async def read_all(cls, user_id: UUID) -> BasicResponse:
         async with get_uow() as uow:
-            logger.info("read_all started")
+            try:
+                logger.info("read_all started")
 
-            all_notifications = await uow.notifications.get_by_user_id(user_id)
+                all_notifications = await uow.notifications.get_by_user_id(user_id)
+                if not all_notifications:
+                    return BasicResponse(
+                        success=True, message="All notifications read successfully"
+                    )
 
-            for notification in all_notifications:
-                data = {
-                    "id": notification.id,
-                    "user_id": notification.user_id,
-                    "type": notification.type,
-                    "title": notification.title,
-                    "message": notification.message,
-                    "project_id": notification.project_id,
-                    "is_read": True,
-                    "created_at": notification.created_at,
-                }
+                for notification in all_notifications:
+                    if notification.is_read:
+                        continue
+                    await uow.notifications.update(notification.id, {"is_read": True})
 
-                await uow.notifications.update(notification.id, data)
+                await uow.commit()
+                return BasicResponse(success=True, message="All notifications read successfully")
 
-            await uow.commit()
-            return BasicResponse(success=True, message="All notifications read successfully")
+            except HTTPException:
+                raise
+            except Exception as e:
+                logger.exception("Error during read_all")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Internal Server Error during read_all",
+                ) from e
