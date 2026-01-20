@@ -80,7 +80,7 @@ class AdminAuthService:
     def refresh(cls, request: Request, response: Response) -> AdminTokenPair:
         client_ip = request.client.host if request.client else "unknown"
 
-        refresh_cookie_name = cfg.admin.cookies.refresh
+        refresh_cookie_name = cfg.cookies.admin.refresh
         refresh_token = request.cookies.get(refresh_cookie_name)
 
         if not refresh_token:

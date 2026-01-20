@@ -61,21 +61,19 @@ class AdminCookies(BaseModel):
     refresh: str = "admin_refresh_token"
 
 
-class Admin(BaseModel):
-    login: str = ""
-    password: str = ""
-    cookies: AdminCookies = AdminCookies()
-
-
 class UserCookies(BaseModel):
     access: str = "user_access_token"
     refresh: str = "user_refresh_token"
 
 
-class User(BaseModel):
-    login: str = "user_access_token"
-    password: str = "user_refresh_token"
-    cookies: UserCookies = UserCookies()
+class Cookies(BaseModel):
+    admin: AdminCookies = AdminCookies()
+    user: UserCookies = UserCookies()
+
+
+class Admin(BaseModel):
+    login: str = ""
+    password: str = ""
 
 
 class JWT(BaseModel):
@@ -110,7 +108,7 @@ class Config(BaseSettings):
     minio: Minio = Minio()
     logging: Logging = Logging()
     admin: Admin = Admin()
-    user: User = User()
+    cookies: Cookies = Cookies()
     jwt: JWT = JWT()
     redis: Redis = Redis()
 

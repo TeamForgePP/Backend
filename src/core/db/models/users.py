@@ -34,7 +34,7 @@ class Users(Base):
         nullable=True,
     )
 
-    in_team: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    in_team: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=func.now()

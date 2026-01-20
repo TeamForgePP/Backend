@@ -33,6 +33,14 @@ class NotificationsRepo(BaseRepository):
         return cast(list[Notifications], notifications)
 
     async def create(self, data: dict[str, Any]) -> Notifications:
+        title = data.get("title")
+        message = data.get("message")
+
+        if title is None or str(title).strip() == "":
+            raise ValueError("NotificationsRepo.create: 'title' is required and cannot be empty")
+        if message is None or str(message).strip() == "":
+            raise ValueError("NotificationsRepo.create: 'message' is required and cannot be empty")
+
         notification = Notifications(**data)
         self._session.add(notification)
         await self._session.flush()
@@ -67,7 +75,8 @@ class NotificationsRepo(BaseRepository):
     async def delete_all_user_notifications(self, project_id: UUID, user_id: UUID) -> bool:
         result = await self._session.execute(
             sql_delete(Notifications).where(
-                Notifications.project_id == project_id, Notifications.user_id == user_id
+                Notifications.project_id == project_id,
+                Notifications.user_id == user_id,
             )
         )
         await self._session.flush()

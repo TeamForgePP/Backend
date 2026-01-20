@@ -77,8 +77,27 @@ class SprintsUtils:
     def sprint_update_payload(cls, data: Sprint) -> dict[str, Any]:
         return {
             "name": data.name,
-            "start_date": data.start_date,
-            "end_date": data.end_date,
+            "start": data.start_date,
+            "deadline": data.end_date,
             "goal": data.goal,
             "description": data.description,
+        }
+
+    @classmethod
+    def sprint_create_payload(
+        cls,
+        project_id: UUID,
+        seq: int,
+        data: Sprint,
+        status: SprintStatus,
+    ) -> dict[str, Any]:
+        return {
+            "project_id": project_id,
+            "seq": seq,
+            "name": data.name,
+            "description": data.description,
+            "goal": data.goal,
+            "start": data.start_date,
+            "deadline": data.end_date,
+            "status": status,
         }

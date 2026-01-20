@@ -13,18 +13,17 @@ from src.modules.kanban.schemas import (
     NewTaskRequest,
     Project,
     SelectedSprint,
+    SprintsResponse,
     TaskResponse,
     UpdateStatusRequest,
 )
 from src.modules.kanban.utils import KanbanUtils
 
-logger = get_logger("home.service")
+logger = get_logger("kanban.service")
 logger.setLevel(logging.INFO)
 
 
 class KanbanService:
-    # ---------------- GET ---------------- #
-
     @classmethod
     async def get_kanban_info(cls, _user_sub: str, _user_role: Role) -> KanbanResponse:
         async with get_uow() as uow:
@@ -36,9 +35,8 @@ class KanbanService:
                 current_sprint = await KanbanUtils.resolve_current_sprint_in_project(
                     uow, project_id
                 )
-                tasks_response = await KanbanUtils.build_tasks_for_sprint(
-                    uow, project_id, current_sprint.id
-                )
+
+                tasks_response = await KanbanUtils.build_tasks_for_sprint(uow, current_sprint.id)
 
                 return KanbanResponse(
                     project=Project(id=project_id, name=project_name),
@@ -49,7 +47,7 @@ class KanbanService:
             except HTTPException:
                 raise
             except Exception as e:
-                logger.error("Error during get info: %s", str(e))
+                logger.exception("Error during get_kanban_info")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Internal Server Error during get info",
@@ -68,12 +66,11 @@ class KanbanService:
                 sprint = await uow.sprints.get_by_id(sprint_id)
                 if not sprint:
                     raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND, detail="Sprint not found"
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="Sprint not found",
                     )
 
-                tasks_response = await KanbanUtils.build_tasks_for_sprint(
-                    uow, project_id, sprint_id
-                )
+                tasks_response = await KanbanUtils.build_tasks_for_sprint(uow, sprint_id)
 
                 return KanbanResponse(
                     project=Project(id=project_id, name=project_name),
@@ -84,7 +81,7 @@ class KanbanService:
             except HTTPException:
                 raise
             except Exception as e:
-                logger.error("Error during get info: %s", str(e))
+                logger.exception("Error during get_kanban_info_by_sprint_id")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Internal Server Error during get info",
@@ -102,7 +99,7 @@ class KanbanService:
             except HTTPException:
                 raise
             except Exception as e:
-                logger.error("Error during get info: %s", str(e))
+                logger.exception("Error during get_all_team_members")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Internal Server Error during get info",
@@ -118,31 +115,51 @@ class KanbanService:
                         status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
                     )
 
-                assignee_ids = await uow.performes.get_assignee_ids_by_task(task_id)
+                assignee_ids = await uow.performes.get_assignee_ids_by_task(task_id) or []
 
-                users_response = []
+                performers = []
                 for assignee_id in assignee_ids:
-                    users_response.append(await KanbanUtils.get_performer(uow, assignee_id))
+                    performers.append(await KanbanUtils.get_performer(uow, assignee_id))
 
                 return TaskResponse(
                     id=task_id,
                     title=task.title,
                     description=task.description or "",
-                    users=users_response,
+                    performers=performers,
                     priority=task.priority,
                     deadline=KanbanUtils.as_date(task.deadline),
+                    tag=getattr(task, "tag", None),
+                    key=task.key,
                 )
 
             except HTTPException:
                 raise
             except Exception as e:
-                logger.error("Error during get info: %s", str(e))
+                logger.exception("Error during get_task")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Internal Server Error during get info",
                 ) from e
 
-    # ---------------- CREATE ---------------- #
+    @classmethod
+    async def get_number_of_sprints(cls, _user_sub: str, _user_role: Role) -> SprintsResponse:
+        async with get_uow() as uow:
+            try:
+                project_id, _project_name = await KanbanUtils.resolve_project(
+                    uow, _user_sub, _user_role
+                )
+
+                items = await KanbanUtils.build_sprints_items(uow, project_id)
+                return SprintsResponse(number=len(items), sprints=items)
+
+            except HTTPException:
+                raise
+            except Exception as e:
+                logger.exception("Error during get_number_of_sprints")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Internal Server Error during get info",
+                ) from e
 
     @classmethod
     async def create_task(
@@ -154,7 +171,7 @@ class KanbanService:
             except HTTPException:
                 raise
             except Exception as e:
-                logger.error("Error during task creation: %s", str(e))
+                logger.exception("Error during task creation")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Internal Server Error during task creation",
@@ -172,12 +189,14 @@ class KanbanService:
 
         project_id, _project_name = await KanbanUtils.resolve_project(uow, _user_sub, _user_role)
 
-        performer_ids: list[UUID] = [p.id for p in data.performes]
-        all_roles = await KanbanUtils.collect_unique_roles_for_users_in_project(
-            uow, project_id, performer_ids
-        )
-
         sprint_id = await KanbanUtils.resolve_sprint_for_task(uow, project_id, data)
+
+        sprint = await uow.sprints.get_by_id(sprint_id)
+        if not sprint:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sprint not found")
+
+        task_seq = await uow.tasks.get_next_seq_for_project(project_id)
+        key = f"{sprint.seq}-{task_seq}"
 
         task = await uow.tasks.create(
             {
@@ -186,18 +205,19 @@ class KanbanService:
                 "title": data.title,
                 "description": data.description,
                 "priority": data.priority,
-                "tag": all_roles,
+                "tag": getattr(data, "tag", None),
                 "status": TaskStatus.ToDo,
-                "deadline": data.deadline,
+                "seq": task_seq,
+                "key": key,
+                "deadline": KanbanUtils.deadline_to_datetime(data.deadline),
             }
         )
 
-        await KanbanUtils.notify_new_task(uow, project_id, task.id, data)
+        if data.performers:
+            await KanbanUtils.notify_new_task(uow, project_id, task.id, data)
 
         await uow.commit()
         return BasicResponse(success=True, message="Task successfully created")
-
-    # ---------------- POST ---------------- #
 
     @classmethod
     async def update_status(cls, data: UpdateStatusRequest) -> BasicResponse:
@@ -208,7 +228,7 @@ class KanbanService:
                 return BasicResponse(success=True, message="Task status updated successfully")
 
             except Exception as e:
-                logger.error("Error during update status: %s", str(e))
+                logger.exception("Error during update_status")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Internal Server Error during update status",
