@@ -6,14 +6,10 @@ from fastapi import HTTPException, status
 from src.core.db import SprintStatus, UnitOfWork, get_uow
 from src.core.logger import get_logger
 from src.core.security.dependencies import Role
-from src.modules.sprints.schemas import (
-    AllSprintsResponse,
-    BasicResponse,
-    Sprint,
-)
+from src.modules.sprints.schemas import AllSprintsResponse, BasicResponse, Sprint
 from src.modules.sprints.utils import SprintsUtils
 
-logger = get_logger("home.service")
+logger = get_logger("sprints.service")
 logger.setLevel(logging.INFO)
 
 
@@ -40,10 +36,10 @@ class SprintsService:
             except HTTPException:
                 raise
             except Exception as e:
-                logger.error("Error during get info: %s", str(e))
+                logger.exception("Error during get_sprints_info")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Internal Server Error during get info",
+                    detail="Internal Server Error during get sprints",
                 ) from e
 
     @classmethod
@@ -68,10 +64,10 @@ class SprintsService:
             except HTTPException:
                 raise
             except Exception as e:
-                logger.error("Error during get info: %s", str(e))
+                logger.exception("Error during get_sprint_by_id")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Internal Server Error during get info",
+                    detail="Internal Server Error during get sprint",
                 ) from e
 
     # ---------------- EDIT ---------------- #
@@ -80,14 +76,22 @@ class SprintsService:
     async def edit_sprint(cls, sprint_id: UUID, data: Sprint) -> BasicResponse:
         async with get_uow() as uow:
             try:
-                await uow.sprints.update(sprint_id, SprintsUtils.sprint_update_payload(data))
+                updated = await uow.sprints.update(
+                    sprint_id, SprintsUtils.sprint_update_payload(data)
+                )
+                if updated is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="Sprint not found",
+                    )
+
                 await uow.commit()
                 return BasicResponse(success=True, message="Sprint successfully edited")
 
             except HTTPException:
                 raise
             except Exception as e:
-                logger.error("Error during edit sprint: %s", str(e))
+                logger.exception("Error during edit_sprint")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Internal Server Error during edit sprint",
@@ -108,7 +112,7 @@ class SprintsService:
                 if sprint.status != SprintStatus.ACTIVE:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="Sprint cannot completed",
+                        detail="Sprint cannot be completed",
                     )
 
                 await uow.sprints.update(sprint_id, {"status": SprintStatus.COMPLETED})
@@ -124,7 +128,7 @@ class SprintsService:
             except HTTPException:
                 raise
             except Exception as e:
-                logger.error("Error during complete sprint: %s", str(e))
+                logger.exception("Error during complete_sprint")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Internal Server Error during complete sprint",
@@ -140,7 +144,7 @@ class SprintsService:
             except HTTPException:
                 raise
             except Exception as e:
-                logger.error("Error during sprint creation: %s", str(e))
+                logger.exception("Error during sprint creation")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Internal Server Error during sprint creation",
@@ -158,16 +162,13 @@ class SprintsService:
 
         project = await SprintsUtils.pick_uncompleted_project(uow, _user_sub, _user_role)
 
-        await uow.sprints.create(
-            {
-                "project_id": project.id,
-                "name": data.name,
-                "description": data.description,
-                "goal": data.goal,
-                "start": data.start_date,
-                "deadline": data.end_date,
-            }
-        )
+        seq = await uow.sprints.get_next_seq_for_project(project.id)
+
+        active = await uow.sprints.get_active_sprint_in_project(project.id)
+        new_status = SprintStatus.ACTIVE if active is None else SprintStatus.UPCOMING
+
+        payload = SprintsUtils.sprint_create_payload(project.id, seq, data, new_status)
+        await uow.sprints.create(payload)
 
         await uow.commit()
         return BasicResponse(success=True, message="Sprint successfully created")
