@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from dataclasses import dataclass
 from typing import Any
 
@@ -18,12 +16,6 @@ def _safe_str(v: Any, fallback: str) -> str:
 
 
 def build_notification_content(ntype: NotificationType, ctx: dict[str, Any]) -> NotificationContent:
-    """
-    Формат под ваш UI:
-    - Для проектов: title = project_name, message = тип события
-    - Для задач/дедлайна: title = "<KEY> <TITLE>", message = тип события
-    """
-
     if ntype == NotificationType.NewInvite:
         project_name = _safe_str(ctx.get("project_name"), "Проект")
         return NotificationContent(title=project_name, message="Приглашение в проект")
