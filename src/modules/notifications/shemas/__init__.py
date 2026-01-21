@@ -1,19 +1,12 @@
-from .notifications import (
-    BasicResponse,
-    InvitationResponse,
-    Notification,
-    NotificationsResponse,
-    Participant,
-    Project,
-    TeamLeader,
-)
+from .invitations import InvitationResponse, Participant, Project, TeamLeader
+from .notifications import BasicResponse, Notification, NotificationsResponse
 
 __all__ = [
     "Notification",
     "NotificationsResponse",
-    "Project",
+    "BasicResponse",
+    "InvitationResponse",
     "TeamLeader",
     "Participant",
-    "InvitationResponse",
-    "BasicResponse",
+    "Project",
 ]
