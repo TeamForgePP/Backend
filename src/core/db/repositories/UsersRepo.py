@@ -49,6 +49,17 @@ class UsersRepo(BaseRepository):
         result = await self._session.execute(select(Users))
         return cast(list[Users], result.scalars().all())
 
+    async def mark_in_team(self, user_id: UUID, bool_team: bool) -> Users | None:
+        user = await self.get_by_id(user_id)
+        if user is None:
+            return None
+
+        user.in_team = bool_team
+
+        await self._session.flush()
+        await self._session.refresh(user)
+        return user
+
     async def create(self, data: dict[str, Any]) -> Users:
         user = Users(**data)
         self._session.add(user)
