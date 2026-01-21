@@ -65,7 +65,6 @@ class HomeService:
             }
         )
 
-        # Для UI: title = имя проекта, message = тип уведомления
         project = await uow.projects.get_by_id(project_id)
         project_name = getattr(project, "name", None) if project else None
 
@@ -146,6 +145,8 @@ class HomeService:
                     "created_at": datetime.now(UTC),
                 }
             )
+
+            await uow.users.mark_in_team(teamlead_id, True)
 
             await uow.teams.create(
                 {
@@ -238,6 +239,8 @@ class HomeService:
                 }
             )
 
+            await uow.users.mark_in_team(teamlead_id, True)
+
             await uow.project_roles.add_role(
                 project_id=project.id,
                 user_id=teamlead_id,
@@ -262,8 +265,6 @@ class HomeService:
                     teamlead_id=teamlead_id,
                 )
 
-                # В БД invitations.invited_by_id NOT NULL.
-                # Админ создаёт проект — считаем, что приглашение “от тимлида проекта”.
                 await cls._invite_member(
                     uow,
                     project_id=project.id,
@@ -282,15 +283,23 @@ class HomeService:
             try:
                 logger.info("get_users_for_team started")
 
+                requester_id: UUID | None = None
                 users: list[object] = []
 
                 if _user_role == "admin":
+                    try:
+                        requester_id = HomeUtils.parse_uuid(
+                            _user_sub, detail="Invalid token subject"
+                        )
+                    except HTTPException:
+                        requester_id = None
+
                     users = cast(list[object], await uow.users.get_all())
 
                 elif _user_role == "user":
-                    user_id = HomeUtils.parse_uuid(_user_sub, detail="Invalid token subject")
+                    requester_id = HomeUtils.parse_uuid(_user_sub, detail="Invalid token subject")
 
-                    user = await uow.users.get_by_id(user_id)
+                    user = await uow.users.get_by_id(requester_id)
                     if not user:
                         return UsersResponse(users=[])
 
@@ -305,6 +314,9 @@ class HomeService:
                         status_code=status.HTTP_401_UNAUTHORIZED,
                         detail="Unauthorized user",
                     )
+
+                if requester_id is not None:
+                    users = [u for u in users if getattr(u, "id", None) != requester_id]
 
                 return HomeUtils.to_users_response(users)
 
@@ -594,6 +606,7 @@ class HomeService:
             await uow.notifications.delete_all_user_notifications(
                 project_id=project_id, user_id=user_id
             )
+            await uow.users.mark_in_team(user_id=user_id, bool_team=False)
 
             await uow.commit()
 
@@ -617,7 +630,8 @@ class HomeService:
                 user_id = HomeUtils.parse_uuid(_user_sub, detail="Invalid token subject")
 
                 user_roles = await uow.project_roles.get_roles_for_user_in_project(
-                    project_id=project_id, user_id=user_id
+                    project_id=project_id,
+                    user_id=user_id,
                 )
                 user_roles = user_roles or []
 
@@ -626,6 +640,8 @@ class HomeService:
                         status_code=status.HTTP_403_FORBIDDEN,
                         detail="Only teamlead or admin can delete project",
                     )
+
+                await HomeUtils.mark_all_team(uow, project_id)
 
                 deleted = await uow.projects.delete(project_id)
                 if not deleted:
@@ -638,6 +654,8 @@ class HomeService:
                 return BasicResponse(success=True, message="Project successfully deleted")
 
             if _user_role == "admin":
+                await HomeUtils.mark_all_team(uow, project_id)
+
                 deleted = await uow.projects.delete(project_id)
                 if not deleted:
                     raise HTTPException(

@@ -14,6 +14,19 @@ from src.modules.home.schemas import User, UsersResponse
 
 class HomeUtils:
     @classmethod
+    async def mark_all_team(cls, uow: UnitOfWork, project_id: UUID) -> None:
+        team_rows = await uow.teams.get_by_project(project_id=project_id)
+        team_rows = team_rows or []
+
+        for team in team_rows:
+            if getattr(team, "status", None) not in (UserStatus.Owner, UserStatus.Member):
+                continue
+
+            member_id = getattr(team, "user_id", None)
+            if isinstance(member_id, UUID):
+                await uow.users.mark_in_team(user_id=member_id, bool_team=False)
+
+    @classmethod
     def parse_uuid(cls, value: str, *, detail: str) -> UUID:
         try:
             return UUID(value)
@@ -64,32 +77,6 @@ class HomeUtils:
             )
 
         return UsersResponse(users=result)
-
-    @classmethod
-    async def cleanup_team_members_and_delete_project(
-        cls,
-        uow: UnitOfWork,
-        *,
-        project_id: UUID,
-    ) -> None:
-        teams = await uow.teams.get_by_project(project_id=project_id) or []
-
-        for team in teams:
-            if getattr(team, "status", None) in (UserStatus.Owner, UserStatus.Member):
-                uid = getattr(team, "user_id", None)
-                if isinstance(uid, UUID):
-                    user = await uow.users.get_by_id(user_id=uid)
-                    if user:
-                        user.in_team = False
-
-        deleted = await uow.projects.delete(project_id)
-        if not deleted:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to delete project",
-            )
-
-        await uow.commit()
 
     @classmethod
     def is_active_sprint(cls, status_value: object) -> bool:
