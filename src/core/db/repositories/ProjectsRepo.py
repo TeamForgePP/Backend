@@ -4,6 +4,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.db.enums import UserStatus
 from src.core.db.interfaces import BaseRepository
 from src.core.db.models import Projects, Teams
 
@@ -37,20 +38,30 @@ class ProjectsRepo(BaseRepository):
         result = await self._session.execute(select(Projects).where(Projects.name == name))
         return cast(Projects | None, result.scalar_one_or_none())
 
+    async def get_active_project_by_user_id(self, user_id: UUID) -> bool:
+        result = await self._session.execute(
+            select(Projects)
+            .join(Teams, Teams.project_id == Projects.id)
+            .where(
+                Teams.user_id == user_id,
+                Teams.status.in_([UserStatus.Owner, UserStatus.Member]),
+                Projects.is_completed.is_(False),
+            )
+            .limit(1)
+        )
+        return result.scalar_one_or_none() is not None
+
     async def get_projects_id_by_user_id(self, user_id: UUID) -> list[Projects]:
-        projects_id = (
-            (await self._session.execute(select(Teams.project_id).where(Teams.user_id == user_id)))
-            .scalars()
-            .all()
+        stmt = (
+            select(Projects)
+            .join(Teams, Teams.project_id == Projects.id)
+            .where(
+                Teams.user_id == user_id,
+                Teams.status.in_([UserStatus.Owner, UserStatus.Member]),
+            )
         )
-        if not projects_id:
-            return []
-        projects_result = (
-            (await self._session.execute(select(Projects).where(Projects.id.in_(projects_id))))
-            .scalars()
-            .all()
-        )
-        return cast(list[Projects], projects_result)
+        result = await self._session.execute(stmt)
+        return cast(list[Projects], result.scalars().all())
 
     async def get_all(self) -> list[Projects]:
         result = await self._session.execute(select(Projects))
