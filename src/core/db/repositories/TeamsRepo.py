@@ -23,6 +23,12 @@ class TeamsRepo(BaseRepository):
         teams = result.scalars().all()
         return cast(list[Teams], teams)
 
+    async def get_by_project_and_user(self, project_id: UUID, user_id: UUID) -> Teams | None:
+        result = await self._session.execute(
+            select(Teams).where(Teams.project_id == project_id, Teams.user_id == user_id)
+        )
+        return cast(Teams | None, result.scalars().first())
+
     async def get_all(self) -> list[Teams]:
         result = await self._session.execute(select(Teams))
         teams = result.scalars().all()

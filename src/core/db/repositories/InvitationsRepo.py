@@ -5,6 +5,7 @@ from sqlalchemy import delete as sql_delete
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.db.enums import InvitationStatus
 from src.core.db.interfaces import BaseRepository
 from src.core.db.models.invitations import Invitations
 
@@ -19,8 +20,24 @@ class InvitationsRepo(BaseRepository):
         return cast(Invitations | None, invitation)
 
     async def get_by_notification_id(self, notification_id: UUID) -> Invitations | None:
-        invitation = await self._session.get(Invitations, notification_id)
-        return cast(Invitations | None, invitation)
+        result = await self._session.execute(
+            select(Invitations).where(Invitations.notification_id == notification_id)
+        )
+        return cast(Invitations | None, result.scalars().first())
+
+    async def get_posted_for_user_excluding(
+        self,
+        user_id: UUID,
+        exclude_invitation_id: UUID,
+    ) -> list[Invitations]:
+        result = await self._session.execute(
+            select(Invitations).where(
+                Invitations.invited_user_id == user_id,
+                Invitations.status == InvitationStatus.Posted,
+                Invitations.id != exclude_invitation_id,
+            )
+        )
+        return cast(list[Invitations], result.scalars().all())
 
     async def get_all(self) -> list[Invitations]:
         result = await self._session.execute(select(Invitations))
@@ -58,7 +75,8 @@ class InvitationsRepo(BaseRepository):
     async def delete_all_user_invitations(self, project_id: UUID, user_id: UUID) -> bool:
         result = await self._session.execute(
             sql_delete(Invitations).where(
-                Invitations.project_id == project_id, Invitations.invited_user_id == user_id
+                Invitations.project_id == project_id,
+                Invitations.invited_user_id == user_id,
             )
         )
         await self._session.flush()
