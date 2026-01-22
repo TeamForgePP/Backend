@@ -12,7 +12,6 @@ from pydantic_settings import (
 BASE_DIR = Path(__file__).parent.parent.parent
 TOML_SETTINGS_PATH = BASE_DIR / "config.toml"
 
-
 PathsSources: list[tuple[Path, type[PydanticBaseSettingsSource]]] = [
     (TOML_SETTINGS_PATH, TomlConfigSettingsSource),
 ]
@@ -22,9 +21,13 @@ class Minio(BaseModel):
     minio_endpoint: str = ""
     minio_access_key: str = ""
     minio_secret_key: str = ""
-    minio_bucket: str = ""
-    minio_root_user: str = ""
-    minio_root_password: str = ""
+    minio_bucket: str = "public"
+    upload_expire_seconds: int = 900
+    max_file_size_mb: int = 50
+
+    @property
+    def max_file_size_bytes(self) -> int:
+        return int(self.max_file_size_mb) * 1024 * 1024
 
 
 class Database(BaseModel):
@@ -45,7 +48,7 @@ class Database(BaseModel):
     def alembic_url(self) -> str:
         return (
             f"postgresql+asyncpg://{self.postgres_username}:{self.postgres_password}"
-            f"@localhost:{self.postgres_port}/{self.postgres_db}"
+            f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
 
 
@@ -58,10 +61,19 @@ class AdminCookies(BaseModel):
     refresh: str = "admin_refresh_token"
 
 
+class UserCookies(BaseModel):
+    access: str = "user_access_token"
+    refresh: str = "user_refresh_token"
+
+
+class Cookies(BaseModel):
+    admin: AdminCookies = AdminCookies()
+    user: UserCookies = UserCookies()
+
+
 class Admin(BaseModel):
     login: str = ""
     password: str = ""
-    cookies: AdminCookies = AdminCookies()
 
 
 class JWT(BaseModel):
@@ -82,8 +94,8 @@ class JWT(BaseModel):
 class Redis(BaseModel):
     url: str = "redis://localhost:6379/0"
     login_attempts_prefix: str = "auth:login_attempts:"
-    login_attempts_ttl_seconds: int = 300  # 5 minutes
-    login_attempts_max: int = 5  # default max attempts
+    login_attempts_ttl_seconds: int = 300
+    login_attempts_max: int = 5
 
 
 class Config(BaseSettings):
@@ -96,6 +108,7 @@ class Config(BaseSettings):
     minio: Minio = Minio()
     logging: Logging = Logging()
     admin: Admin = Admin()
+    cookies: Cookies = Cookies()
     jwt: JWT = JWT()
     redis: Redis = Redis()
 

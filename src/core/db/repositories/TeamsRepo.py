@@ -1,6 +1,7 @@
 from typing import Any, cast
 from uuid import UUID
 
+from sqlalchemy import delete as sql_delete
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +22,12 @@ class TeamsRepo(BaseRepository):
         result = await self._session.execute(select(Teams).where(Teams.project_id == project_id))
         teams = result.scalars().all()
         return cast(list[Teams], teams)
+
+    async def get_by_project_and_user(self, project_id: UUID, user_id: UUID) -> Teams | None:
+        result = await self._session.execute(
+            select(Teams).where(Teams.project_id == project_id, Teams.user_id == user_id)
+        )
+        return cast(Teams | None, result.scalars().first())
 
     async def get_all(self) -> list[Teams]:
         result = await self._session.execute(select(Teams))
@@ -54,3 +61,10 @@ class TeamsRepo(BaseRepository):
         await self._session.delete(team)
         await self._session.flush()
         return True
+
+    async def delete_member(self, project_id: UUID, user_id: UUID) -> bool:
+        result = await self._session.execute(
+            sql_delete(Teams).where(Teams.project_id == project_id, Teams.user_id == user_id)
+        )
+        await self._session.flush()
+        return (result.rowcount or 0) > 0

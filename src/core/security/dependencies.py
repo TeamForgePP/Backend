@@ -6,13 +6,14 @@ from fastapi import Depends, HTTPException, Request, status
 from src.config import cfg
 from src.core.security.TokenType import TokenType
 from src.modules.auth.utils.AdminToken import get_admin_token_service
+from src.modules.auth.utils.UserToken import get_user_token_service
 
 Role = Literal["admin", "user"]
 
 
 class RawPayload(TypedDict, total=False):
     sub: str
-    typ: TokenType
+    typ: Any
     role: Role
     iat: int
     exp: int
@@ -25,21 +26,39 @@ class AccessContext:
     token_type: TokenType
 
 
-def _get_raw_token_from_cookies(request: Request) -> str:
-    cookie_name = cfg.admin.cookies.access
-    token = request.cookies.get(cookie_name)
+@dataclass
+class PrincipalContext:
+    sub: str
+    role: Role
 
+
+def _get_any_access_token_from_cookies(request: Request) -> str:
+    admin_token = request.cookies.get(cfg.cookies.admin.access)
+    if admin_token:
+        return admin_token
+
+    user_token = request.cookies.get(cfg.cookies.user.access)
+    if user_token:
+        return user_token
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="not authenticated",
+    )
+
+
+def _get_admin_access_token_from_cookies(request: Request) -> str:
+    token = request.cookies.get(cfg.cookies.admin.access)
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="not authenticated",
         )
-
     return token
 
 
 def get_access_context(request: Request) -> AccessContext:
-    token = _get_raw_token_from_cookies(request)
+    token = _get_admin_access_token_from_cookies(request)
     admin_token_service = get_admin_token_service()
 
     try:
@@ -51,7 +70,6 @@ def get_access_context(request: Request) -> AccessContext:
         ) from err
 
     raw_payload_dict = cast(dict[str, Any], payload_dict)
-    payload = cast(RawPayload, raw_payload_dict)
 
     if admin_token_service.is_admin_access(raw_payload_dict):
         role: Role = "admin"
@@ -67,10 +85,12 @@ def get_access_context(request: Request) -> AccessContext:
             detail="token rejected",
         )
 
-    sub = payload.get("sub", "admin")
+    sub_val = raw_payload_dict.get("sub")
+    if not isinstance(sub_val, str):
+        sub_val = "admin"
 
     return AccessContext(
-        sub=sub,
+        sub=sub_val,
         role=role,
         token_type=token_type,
     )
@@ -85,5 +105,57 @@ def require_admin(access: AccessContext = access_context_dep) -> AccessContext:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="admin only",
         )
-
     return access
+
+
+def get_principal_context(request: Request) -> PrincipalContext:
+    token = _get_any_access_token_from_cookies(request)
+
+    admin_svc = get_admin_token_service()
+    try:
+        admin_payload = cast(dict[str, Any], admin_svc.decode(token))
+        if admin_svc.is_admin_access(admin_payload):
+            sub_val = admin_payload.get("sub")
+            if not isinstance(sub_val, str):
+                sub_val = "admin"
+            return PrincipalContext(sub=sub_val, role="admin")
+    except Exception:
+        pass
+
+    user_svc = get_user_token_service()
+    try:
+        user_payload = cast(dict[str, Any], user_svc.decode(token))
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="invalid token",
+        ) from err
+
+    if user_payload.get("typ") == "refresh":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="refresh token is not allowed here",
+        )
+
+    if user_svc.is_user_access(user_payload):
+        sub_val = user_payload.get("sub")
+        if not isinstance(sub_val, str):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="token missing subject",
+            )
+        return PrincipalContext(sub=sub_val, role="user")
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="token rejected",
+    )
+
+
+principal_context_dep = Depends(get_principal_context)
+
+
+def require_user_or_admin(
+    principal: PrincipalContext = principal_context_dep,
+) -> PrincipalContext:
+    return principal

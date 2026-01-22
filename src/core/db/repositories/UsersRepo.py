@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.db.interfaces import BaseRepository
-from src.core.db.models import Users
+from src.core.db.models import Teams, Users
 
 
 class UsersRepo(BaseRepository):
@@ -25,9 +25,40 @@ class UsersRepo(BaseRepository):
         result = await self._session.execute(select(Users).where(Users.email == email))
         return cast(Users | None, result.scalar_one_or_none())
 
+    async def get_by_project_id(self, project_id: UUID) -> list[Users]:
+        users_id = (
+            (
+                await self._session.execute(
+                    select(Teams.user_id).where(Teams.project_id == project_id)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        if not users_id:
+            return []
+        result = (
+            (await self._session.execute(select(Users).where(Users.id.in_(users_id))))
+            .scalars()
+            .all()
+        )
+
+        return cast(list[Users], result)
+
     async def get_all(self) -> list[Users]:
         result = await self._session.execute(select(Users))
         return cast(list[Users], result.scalars().all())
+
+    async def mark_in_team(self, user_id: UUID, bool_team: bool) -> Users | None:
+        user = await self.get_by_id(user_id)
+        if user is None:
+            return None
+
+        user.in_team = bool_team
+
+        await self._session.flush()
+        await self._session.refresh(user)
+        return user
 
     async def create(self, data: dict[str, Any]) -> Users:
         user = Users(**data)

@@ -21,9 +21,8 @@ class Notifications(Base):
         nullable=False,
     )
 
-    title: Mapped[str] = mapped_column(Text)
-
-    message: Mapped[str] = mapped_column(Text)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
 
     project_id: Mapped[UUID] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"),

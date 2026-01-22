@@ -45,7 +45,6 @@ class AdminAuthService:
                 detail="too many login attempts, try again later",
             )
 
-        # неверные креды
         if data.username != cfg.admin.login or data.password != cfg.admin.password:
             attempts = await attempts_service.increment(identifier, ip=client_ip)
             logger.warning(
@@ -81,7 +80,7 @@ class AdminAuthService:
     def refresh(cls, request: Request, response: Response) -> AdminTokenPair:
         client_ip = request.client.host if request.client else "unknown"
 
-        refresh_cookie_name = cfg.admin.cookies.refresh
+        refresh_cookie_name = cfg.cookies.admin.refresh
         refresh_token = request.cookies.get(refresh_cookie_name)
 
         if not refresh_token:

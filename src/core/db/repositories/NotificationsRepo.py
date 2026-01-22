@@ -1,6 +1,7 @@
 from typing import Any, cast
 from uuid import UUID
 
+from sqlalchemy import delete as sql_delete
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,6 +33,14 @@ class NotificationsRepo(BaseRepository):
         return cast(list[Notifications], notifications)
 
     async def create(self, data: dict[str, Any]) -> Notifications:
+        title = data.get("title")
+        message = data.get("message")
+
+        if title is None or str(title).strip() == "":
+            raise ValueError("NotificationsRepo.create: 'title' is required and cannot be empty")
+        if message is None or str(message).strip() == "":
+            raise ValueError("NotificationsRepo.create: 'message' is required and cannot be empty")
+
         notification = Notifications(**data)
         self._session.add(notification)
         await self._session.flush()
@@ -62,3 +71,13 @@ class NotificationsRepo(BaseRepository):
         await self._session.delete(notification)
         await self._session.flush()
         return True
+
+    async def delete_all_user_notifications(self, project_id: UUID, user_id: UUID) -> bool:
+        result = await self._session.execute(
+            sql_delete(Notifications).where(
+                Notifications.project_id == project_id,
+                Notifications.user_id == user_id,
+            )
+        )
+        await self._session.flush()
+        return (result.rowcount or 0) > 0

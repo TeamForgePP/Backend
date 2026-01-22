@@ -1,8 +1,14 @@
-from .user import UserBase, UserCreate, UserRead, UserUpdate
+from .group import GroupBase, GroupCreate, GroupRead, GroupUpdate
+from .user import UserBase, UserCreate, UserPasswordUpdate, UserProfileUpdate, UserRead
 
 __all__ = [
     "UserBase",
     "UserCreate",
     "UserRead",
-    "UserUpdate",
+    "UserProfileUpdate",
+    "UserPasswordUpdate",
+    "GroupBase",
+    "GroupCreate",
+    "GroupRead",
+    "GroupUpdate",
 ]
