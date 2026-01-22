@@ -30,6 +30,8 @@ app = FastAPI(
 app.include_router(api_router)
 
 origins = [
+    "https://team-forge.ru",
+    "https://www.team-forge.ru",
     "http://localhost:3000",
 ]
 
