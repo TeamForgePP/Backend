@@ -2,6 +2,408 @@
 
 <!-- version list -->
 
+## v2.0.0 (2026-01-22)
+
+### Bug Fixes
+
+- **auth**: Вернул как было ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **auth**: Привёл cookies, зависимости и модели к согласованной логике
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **auth**: Уточнить типизацию email в refresh [KAN-46]
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **config**: Настроить отдельные cookies для пользователя [KAN-46]
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **cors**: Пофиксил origin ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **db**: Добавить зависимость get_async_session для auth [KAN-46]
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **db**: Исправил работу ролей проекта и вычисление seq для спринтов
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **dep**: Поправил файлик для получения зависимости токенов из куки
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **home**: Исправил работу логики отметки что юзер состоит в проекте, исправил ошибку при
+  добавления нескольких пользователей ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **home**: Исправить маршруты для модуля home
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **home**: Исправить реализацию метода delete_project
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **home**: Исправить реализацию сервиса для модуля home
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **home**: Корректное создание инвайт-уведомлений и удаление проекта
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **home-service**: Поправил неправильную обработку ошибок, а так же добавил новые обработки ошибок
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **kanban**: Исправить ошибки mypy в KanbanService
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **kanban**: Исправлена типизация sprint_id и ошибки mypy
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **kanban**: Устранил конфликт роутов и 422 при запросе team-members
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **logger**: Исправил кривой вывод ошибок в логгере
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **logger**: Исправлен баг, при котором логгер не выводил ошибку в терминал
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **models**: Исправил ошибку с nullable=False в тоблице уведомлений
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **notifications**: Корректная выдача уведомлений и отметка прочтения
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **notifications**: Обязательные title и message в уведомлениях
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **profile**: Исправил определение активного проекта и роли пользователя
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **projects**: Корректно определяю активный проект по статусам teams
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **routers**: Исправил ошибку 401 из-за перекрытия апи путей
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **security**: Привести get_principal_context к mypy-friendly виду [KAN-46]
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **security**: Уточнить типизацию sub в общей зависимости [KAN-46]
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **sprints**: Исправил создание спринтов и активацию первого спринта
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **sprints**: Исправить ошибки mypy в KanbanService
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **tasks,sprints**: Выравнивание логики и типизации
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **TokenType**: Добавил USER_ACCESS и USER_REFRESH
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **user-cookie**: Поправил обработку времени жизни токенов
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+### Chores
+
+- **db**: Вернуть session.py к состоянию dev [KAN-46]
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+### Features
+
+- **admin**: Добавил серию роутеров на crud групп
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **auth**: Добавить маршруты авторизации пользователя [KAN-46]
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **auth**: Добавить работу с куками пользователя [KAN-46]
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **auth**: Добавить сервис JWT токенов для пользователя [KAN-46]
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **auth**: Добавить схемы логина пользователя [KAN-46]
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **auth**: Подключить роутер авторизации пользователя [KAN-46]
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **auth**: Реализовать сервис логина по email [KAN-46]
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **cors**: Добавил corsmiddleware ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **db**: Исправил дефолтные значения булевых полей и PK в ProjectRole
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **docker**: Подготовили docker-compose для деплоя
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **home**: Добавить в схему SprintMap поле active
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **home**: Добавить маршруты для модуля home
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **home**: Добавить схемы для модуля home ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **home**: Реализовать разную логику для user и admin
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **home**: Реализовать сервис для модуля home
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **invitations**: Добавил методы репозиториев для принятия и отклонения
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **invitations**: Добавил ручки принятия и отклонения приглашений
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **invitations**: Добавил сервис принятия и отклонения приглашений
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **invitations**: Добавил схемы для приглашений и базовый ответ
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **kanban**: Добавить маршруты для модуля kanban
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **kanban**: Добавить ручку для выплывающего списка спринтов
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **kanban**: Добавить схемы для модуля kanban
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **kanban**: Реализовать бизнес-логику модуля kanban
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **notifications**: Добавить маршурты для модуля notifications
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **notifications**: Добавить схемы для модуля notifications
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **notifications**: Добвамил утилиту для работы с текстом в сообщениях уведомлений
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **notifications**: Реализовать бизнес-логику для модуля notifications
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **notifications**: Утилиты форматирования уведомлений
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **profile**: Добавить маршруты профиля [KAN-52]
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **profile**: Добавить маршруты профиля и подключить модуль [KAN-52]
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **profile**: Добавить схемы профиля [KAN-52]
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **profile**: Добавить схемы профиля пользователя [KAN-52]
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **profile**: Подключил модуль [KAN-52] ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **profile**: Реализовать сервис профиля [KAN-52]
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **project**: Добавил проверку файла без скачивания [KAN-53]
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **project**: Добавил ручкe проекта [KAN-53]
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **project**: Добавить ручки проекта [KAN-53]
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **project**: Добавить схемы проекта [KAN-53]
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **repositories**: Добавить метод для нахождения пользователей по айди проекта
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **repositories**: Добавить метод для нахождения приглашения по id уведомления
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **repositories**: Добавить метод для получения всех незаконченных проектов
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **repositories**: Добавить методы в ProjectsRepo
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **repositories**: Добавить методы в репозитории
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **repositories**: Добавить методы для нахождения активного и будущих спринтов
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **repositories**: Добвать метод для нахождения тасок по id спринта
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **router**: Подключить роутер модуля home ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **router**: Подключить роутер модуля kanban
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **router**: Подключить роутер модуля notifications
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **router**: Подключить роутер модуля sprints
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **s3**: Переместил s3 и db на удаленный хост, адаптировал код на подключение к удаленной базе
+  данных, а так же дабавил инструмент взаимодействия с minio
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **security**: Добавить общую зависимость user/admin [KAN-46]
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **sprints**: Добавить маршруты для модуля sprints
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **sprints**: Добавить схемы для модуля sprints
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **sprints**: Реализовать бизнес-логику модуля sprints
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+### Refactoring
+
+- Провер рефакторинг sprint и kanban сервисов под линтер и mypy
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- Разделил sprint и kanban сервисы на utils ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **auth**: Использовать UoW в сервисе авторизации пользователя [KAN-46]
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **auth**: Упростить роутер авторизации пользователя [KAN-46]
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **auth(user)**: Поправил типизацию ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **db**: Обновил инициализацию и сессию ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **home**: Вынес общую логику удаления проекта и исправил типизацию
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **home**: Заменить AccessContext на PrincipalContext
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **invitations**: Вынес загрузку invitation и notification в utils
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **modules**: Провер рефакторинг новых модулей добавил новые обработки ошибок в HomeService
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **notifications**: Привязал сервис приглашений и экспорты
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **repositories**: Удалить ненужные методы из репозиториев
+  ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+- **users**: Обновил работу с флагом in_team ([#66](https://github.com/TeamForgePP/Backend/pull/66),
+  [`a005b41`](https://github.com/TeamForgePP/Backend/commit/a005b41a3c6efa512e1bc914d6c622734961d1f3))
+
+
 ## v1.4.0 (2025-12-09)
 
 ### Bug Fixes
